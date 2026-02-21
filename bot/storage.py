@@ -47,6 +47,7 @@ class SQLiteStore:
               tg_id INTEGER PRIMARY KEY,
               username TEXT,
               full_name TEXT,
+              status TEXT NOT NULL DEFAULT 'not_started',
               updated_at TEXT NOT NULL
             )
             """
@@ -78,6 +79,7 @@ class SQLiteStore:
         )
         self._ensure_column("contacts", "tg_link", "TEXT")
         self._ensure_column("contacts", "offer_opt_in", "INTEGER NOT NULL DEFAULT 0")
+        self._ensure_column("users", "status", "TEXT NOT NULL DEFAULT 'not_started'")
         self.conn.commit()
 
     def _ensure_column(self, table: str, column: str, definition: str) -> None:
@@ -89,16 +91,37 @@ class SQLiteStore:
     def save_user(self, tg_id: int, username: str | None, full_name: str) -> None:
         self.conn.execute(
             """
-            INSERT INTO users(tg_id, username, full_name, updated_at)
-            VALUES(?, ?, ?, ?)
+            INSERT INTO users(tg_id, username, full_name, status, updated_at)
+            VALUES(?, ?, ?, ?, ?)
             ON CONFLICT(tg_id) DO UPDATE SET
               username=excluded.username,
               full_name=excluded.full_name,
               updated_at=excluded.updated_at
             """,
-            (tg_id, username or "", full_name, _now_iso()),
+            (tg_id, username or "", full_name, "not_started", _now_iso()),
         )
         self.conn.commit()
+
+    def set_status(self, tg_id: int, status: str) -> None:
+        self.conn.execute(
+            """
+            UPDATE users
+            SET status = ?, updated_at = ?
+            WHERE tg_id = ?
+            """,
+            (status, _now_iso(), tg_id),
+        )
+        self.conn.commit()
+
+    def get_status(self, tg_id: int) -> str:
+        row = self.conn.execute(
+            "SELECT status FROM users WHERE tg_id = ?",
+            (tg_id,),
+        ).fetchone()
+        if not row:
+            return "not_started"
+        status = (row["status"] or "").strip()
+        return status or "not_started"
 
     def clear_answers(self, tg_id: int) -> None:
         self.conn.execute("DELETE FROM answers WHERE tg_id = ?", (tg_id,))
@@ -159,5 +182,16 @@ class SQLiteStore:
               updated_at=excluded.updated_at
             """,
             (tg_id, name, telegram, company, revenue, tg_link, int(offer_opt_in), _now_iso()),
+        )
+        self.conn.commit()
+
+    def update_offer_opt_in(self, tg_id: int, *, tg_link: str | None, offer_opt_in: bool) -> None:
+        self.conn.execute(
+            """
+            UPDATE contacts
+            SET tg_link = ?, offer_opt_in = ?, updated_at = ?
+            WHERE tg_id = ?
+            """,
+            (tg_link, int(offer_opt_in), _now_iso(), tg_id),
         )
         self.conn.commit()

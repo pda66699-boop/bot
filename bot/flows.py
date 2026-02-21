@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
-from urllib.parse import quote
 
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import Bot, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from .scoring import (
     STAGE_ORDER,
@@ -31,7 +31,6 @@ from .texts import (
 class ContactForm(StatesGroup):
     name = State()
     revenue = State()
-    tg_share = State()
 
 
 REVENUE_CHOICES = [
@@ -43,6 +42,11 @@ REVENUE_CHOICES = [
 ]
 
 REVENUE_MAP = {key: label for key, label in REVENUE_CHOICES}
+
+STATUS_NOT_STARTED = "not_started"
+STATUS_IN_PROGRESS = "in_progress"
+STATUS_COMPLETED_NO_SHARE = "completed_no_share"
+STATUS_COMPLETED_SHARED = "completed_shared"
 
 
 @dataclass
@@ -99,24 +103,10 @@ def _skip_keyboard(skip_key: str, title: str = "Пропустить") -> Inline
     )
 
 
-def _tg_share_keyboard() -> InlineKeyboardMarkup:
+def _post_offer_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Поделиться ссылкой на мой Telegram",
-                    callback_data="tgshare:yes",
-                )
-            ],
-            [InlineKeyboardButton(text="Пропустить", callback_data="tgshare:no")],
-        ]
-    )
-
-
-def _cta_keyboard(booking_url: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📌 Записаться на разбор", url=booking_url)],
+            [InlineKeyboardButton(text="🔍 Получить персональные рекомендации", callback_data="post_offer:yes")],
         ]
     )
 
@@ -183,6 +173,44 @@ def _build_booking_prefill_text(
     )
 
 
+def _build_answers_sheet_text(
+    questions: list[dict[str, Any]],
+    answers: dict[str, str],
+) -> str:
+    lines: list[str] = []
+    for idx, question in enumerate(questions, start=1):
+        answer_key = answers.get(question["id"])
+        answer_label = "Ответ не указан"
+        if answer_key:
+            option = next((opt for opt in question["options"] if opt["key"] == answer_key), None)
+            if option:
+                answer_label = option["label"]
+        lines.append(
+            f"{idx}. На вопрос «{question['text']}» респондент ответил: {answer_label}."
+        )
+    return "\n".join(lines)
+
+
+def _tg_link_by_username(user_id: int, username: str | None) -> str:
+    return f"https://t.me/{username}" if username else f"tg://user?id={user_id}"
+
+
+async def _send_delayed_offer_message(bot: Bot, chat_id: int) -> None:
+    await asyncio.sleep(300)
+    text = (
+        "🎁 Предложение еще в силе!\n\n"
+        "В отчёте Вы уже получили рекомендации и наблюдения,\n"
+        "которые помогут укрепить управляемость и сократить потери.\n\n"
+        "Но общий отчет показывает стадию и характерные для нее особенности.\n"
+        "Если хотите персональный разьор, исходя из ваших ответов — нажмите кнопку ниже"
+    )
+    try:
+        await bot.send_message(chat_id=chat_id, text=text, reply_markup=_post_offer_keyboard())
+    except Exception:
+        # Ошибка отложенной отправки не должна ломать основной сценарий.
+        pass
+
+
 async def _send_current_question(message: Message, ctx: AppContext, user_id: int) -> None:
     session = ctx.memory.get_or_create(user_id)
     questions = ctx.data["questions"]
@@ -213,9 +241,33 @@ def create_router(ctx: AppContext) -> Router:
             return
         full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
         ctx.sqlite.save_user(user.id, user.username, full_name)
+        ctx.sqlite.set_status(user.id, STATUS_NOT_STARTED)
         ctx.memory.reset(user.id)
         ctx.sqlite.clear_answers(user.id)
         await state.clear()
+        if ctx.sheets:
+            ctx.sheets.ensure_user_row(
+                {
+                    "telegram_id": user.id,
+                    "username": user.username or "",
+                    "telegram_handle": f"@{user.username}" if user.username else f"id:{user.id}",
+                    "telegram_link": _tg_link_by_username(user.id, user.username),
+                    "full_name": full_name,
+                    "status": STATUS_NOT_STARTED,
+                    "raw_answers": {},
+                }
+            )
+            ctx.sheets.update_user_row(
+                user.id,
+                {
+                    "username": user.username or "",
+                    "telegram_handle": f"@{user.username}" if user.username else f"id:{user.id}",
+                    "telegram_link": _tg_link_by_username(user.id, user.username),
+                    "full_name": full_name,
+                    "status": STATUS_NOT_STARTED,
+                    "raw_answers": {},
+                },
+            )
 
         kb = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="🚀 Начать тест", callback_data="start_test")]]
@@ -267,6 +319,18 @@ def create_router(ctx: AppContext) -> Router:
 
         session.answers[question_id] = option_key
         ctx.sqlite.save_answer(user.id, question_id, option_key)
+        ctx.sqlite.set_status(user.id, STATUS_IN_PROGRESS)
+        if ctx.sheets:
+            ctx.sheets.update_user_row(
+                user.id,
+                {
+                    "username": user.username or "",
+                    "telegram_handle": f"@{user.username}" if user.username else f"id:{user.id}",
+                    "telegram_link": _tg_link_by_username(user.id, user.username),
+                    "raw_answers": session.answers,
+                    "status": STATUS_IN_PROGRESS,
+                },
+            )
         session.current_index += 1
 
         if session.current_index < len(questions):
@@ -274,6 +338,15 @@ def create_router(ctx: AppContext) -> Router:
                 await _send_current_question(callback.message, ctx, user.id)
             return
 
+        ctx.sqlite.set_status(user.id, STATUS_COMPLETED_NO_SHARE)
+        if ctx.sheets:
+            ctx.sheets.update_user_row(
+                user.id,
+                {
+                    "status": STATUS_COMPLETED_NO_SHARE,
+                    "raw_answers": session.answers,
+                },
+            )
         await state.set_state(ContactForm.name)
         if callback.message:
             await callback.message.answer(
@@ -282,41 +355,43 @@ def create_router(ctx: AppContext) -> Router:
     @router.message(ContactForm.name)
     async def contact_name(message: Message, state: FSMContext) -> None:
         await state.update_data(name=message.text.strip())
+        if ctx.sheets and message.from_user:
+            ctx.sheets.update_user_row(
+                message.from_user.id,
+                {"full_name": message.text.strip(), "status": STATUS_COMPLETED_NO_SHARE},
+            )
         await state.set_state(ContactForm.revenue)
         await message.answer("💰 Выберите диапазон выручки:", reply_markup=_revenue_keyboard())
 
     @router.callback_query(ContactForm.revenue, F.data.startswith("rev:"))
     async def contact_revenue(callback: CallbackQuery, state: FSMContext) -> None:
         key = callback.data.split(":")[1]
-        await state.update_data(revenue=REVENUE_MAP.get(key, key))
-        await state.set_state(ContactForm.tg_share)
-        await callback.answer()
-        if callback.message:
-            await callback.message.answer(
-                "🎁 Хотите получить персональный более детальный разбор бизнеса?\n"
-                "Нажмите кнопку ниже, и мы свяжемся с вами в Telegram",
-                reply_markup=_tg_share_keyboard(),
+        revenue = REVENUE_MAP.get(key, key)
+        await state.update_data(revenue=revenue, offer_opt_in=False, tg_link=None)
+        if ctx.sheets:
+            ctx.sheets.update_user_row(
+                callback.from_user.id,
+                {"revenue": revenue, "status": STATUS_COMPLETED_NO_SHARE},
             )
-
-    @router.callback_query(ContactForm.tg_share, F.data == "tgshare:no")
-    async def tg_share_no(callback: CallbackQuery, state: FSMContext) -> None:
-        await state.update_data(offer_opt_in=False, tg_link=None)
         await callback.answer()
         if callback.message:
             await _finalize_and_show_result(callback.message, callback.from_user.id, state, ctx)
 
-    @router.callback_query(ContactForm.tg_share, F.data == "tgshare:yes")
-    async def tg_share_yes(callback: CallbackQuery, state: FSMContext) -> None:
+    @router.callback_query(F.data == "post_offer:yes")
+    async def post_offer_yes(callback: CallbackQuery, state: FSMContext) -> None:
         user = callback.from_user
-        if user.username:
-            tg_link = f"https://t.me/{user.username}"
-        else:
-            tg_link = f"tg://user?id={user.id}"
-
-        await state.update_data(offer_opt_in=True, tg_link=tg_link)
-        await callback.answer("Ссылка сохранена ✅")
+        tg_link = _tg_link_by_username(user.id, user.username)
+        ctx.sqlite.update_offer_opt_in(user.id, tg_link=tg_link, offer_opt_in=True)
+        ctx.sqlite.set_status(user.id, STATUS_COMPLETED_SHARED)
+        if ctx.sheets:
+            ctx.sheets.update_user_row(
+                user.id,
+                {"offer_opt_in": True, "telegram_link": tg_link, "status": STATUS_COMPLETED_SHARED},
+            )
+        await callback.answer("Отлично, свяжемся с вами в Telegram ✅")
         if callback.message:
-            await _finalize_and_show_result(callback.message, user.id, state, ctx)
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer("Принято. Скоро отправим персональные рекомендации в Telegram.")
 
     return router
 
@@ -368,14 +443,20 @@ async def _finalize_and_show_result(
         indices,
         respondent_tg_link,
     )
-    booking_url = f"https://t.me/pda33?text={quote(booking_prefill)}"
     telegram_link = (
         f"https://t.me/{user.username}"
         if user and user.username
         else f"tg://user?id={user_id}"
     )
     if ctx.sheets:
-        ctx.sheets.append_lead({
+        answers_sheet_text = _build_answers_sheet_text(ctx.data["questions"], answers)
+        ctx.sheets.ensure_user_row(
+            {
+                "telegram_id": user_id,
+                "username": (user.username if user else None),
+            }
+        )
+        ctx.sheets.update_user_row(user_id, {
             "telegram_id": user_id,
             "username": (user.username if user else None),
             "telegram_link": telegram_link,
@@ -399,6 +480,8 @@ async def _finalize_and_show_result(
             "raw_stage_scores": stage_scores,
             "booking_prefill_text": booking_prefill,
             "raw_answers": answers,
+            "answers_sheet_text": answers_sheet_text,
+            "status": ctx.sqlite.get_status(user_id),
         })
 
     admin_id = os.getenv("ADMIN_ID")
@@ -435,5 +518,6 @@ async def _finalize_and_show_result(
             chat_id=int(admin_id),
             text=summary,
         )
-    await message.answer(text, reply_markup=_cta_keyboard(booking_url))
+    await message.answer(text)
+    asyncio.create_task(_send_delayed_offer_message(message.bot, user_id))
     await state.clear()
