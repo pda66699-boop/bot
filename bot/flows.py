@@ -31,6 +31,7 @@ from .texts import (
 class ContactForm(StatesGroup):
     name = State()
     revenue = State()
+    tg_share = State()
 
 
 REVENUE_CHOICES = [
@@ -100,6 +101,15 @@ def _revenue_keyboard() -> InlineKeyboardMarkup:
 def _skip_keyboard(skip_key: str, title: str = "Пропустить") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=title, callback_data=skip_key)]]
+    )
+
+
+def _tg_share_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔍 Получить разбор", callback_data="tgshare:yes")],
+            [InlineKeyboardButton(text="Пропустить", callback_data="tgshare:no")],
+        ]
     )
 
 
@@ -201,8 +211,8 @@ async def _send_delayed_offer_message(bot: Bot, chat_id: int) -> None:
         "🎁 Предложение еще в силе!\n\n"
         "В отчёте Вы уже получили рекомендации и наблюдения,\n"
         "которые помогут укрепить управляемость и сократить потери.\n\n"
-        "Но общий отчет показывает стадию и характерные для нее особенности.\n"
-        "Если хотите персональный разьор, исходя из ваших ответов — нажмите кнопку ниже"
+        "Но общий отчет показывает лишь стадию развития и характерные для нее особенности.\n"
+        "Если хотите персональный разбор, основанный на выбранных вариантах ответов — нажмите кнопку ниже"
     )
     try:
         await bot.send_message(chat_id=chat_id, text=text, reply_markup=_post_offer_keyboard())
@@ -373,9 +383,42 @@ def create_router(ctx: AppContext) -> Router:
                 callback.from_user.id,
                 {"revenue": revenue, "status": STATUS_COMPLETED_NO_SHARE},
             )
+        await state.set_state(ContactForm.tg_share)
+        await callback.answer()
+        if callback.message:
+            await callback.message.answer(
+                "🎁 Хотите получить более точные рекомендации на основе Ваших ответов?\n"
+                "Нажмите кнопку ниже, и мы направим их вам в Telegram",
+                reply_markup=_tg_share_keyboard(),
+            )
+
+    @router.callback_query(ContactForm.tg_share, F.data == "tgshare:no")
+    async def tg_share_no(callback: CallbackQuery, state: FSMContext) -> None:
+        await state.update_data(offer_opt_in=False, tg_link=None)
+        ctx.sqlite.set_status(callback.from_user.id, STATUS_COMPLETED_NO_SHARE)
+        if ctx.sheets:
+            ctx.sheets.update_user_row(
+                callback.from_user.id,
+                {"offer_opt_in": False, "status": STATUS_COMPLETED_NO_SHARE},
+            )
         await callback.answer()
         if callback.message:
             await _finalize_and_show_result(callback.message, callback.from_user.id, state, ctx)
+
+    @router.callback_query(ContactForm.tg_share, F.data == "tgshare:yes")
+    async def tg_share_yes(callback: CallbackQuery, state: FSMContext) -> None:
+        user = callback.from_user
+        tg_link = _tg_link_by_username(user.id, user.username)
+        await state.update_data(offer_opt_in=True, tg_link=tg_link)
+        ctx.sqlite.set_status(user.id, STATUS_COMPLETED_SHARED)
+        if ctx.sheets:
+            ctx.sheets.update_user_row(
+                user.id,
+                {"offer_opt_in": True, "telegram_link": tg_link, "status": STATUS_COMPLETED_SHARED},
+            )
+        await callback.answer("Ссылка сохранена ✅")
+        if callback.message:
+            await _finalize_and_show_result(callback.message, user.id, state, ctx)
 
     @router.callback_query(F.data == "post_offer:yes")
     async def post_offer_yes(callback: CallbackQuery, state: FSMContext) -> None:
