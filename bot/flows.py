@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import random
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
@@ -77,9 +78,18 @@ def _question_emoji(question: dict[str, Any]) -> str:
     return by_dimension.get(question.get("dimension", ""), "🔹")
 
 
-def _question_keyboard(question: dict[str, Any]) -> InlineKeyboardMarkup:
+def _shuffled_options(question: dict[str, Any], user_id: int) -> list[dict[str, Any]]:
+    # Детеминированное перемешивание: разный порядок по пользователю/вопросу,
+    # но стабильный при повторном показе того же вопроса.
+    options = list(question["options"])
+    rnd = random.Random(f"{user_id}:{question['id']}")
+    rnd.shuffle(options)
+    return options
+
+
+def _question_keyboard(question: dict[str, Any], options: list[dict[str, Any]]) -> InlineKeyboardMarkup:
     rows = []
-    for option in question["options"]:
+    for option in options:
         rows.append(
             [
                 InlineKeyboardButton(
@@ -225,20 +235,21 @@ async def _send_current_question(message: Message, ctx: AppContext, user_id: int
     session = ctx.memory.get_or_create(user_id)
     questions = ctx.data["questions"]
     question = questions[session.current_index]
+    options = _shuffled_options(question, user_id)
     pos = session.current_index + 1
     total = len(questions)
     bar = _progress_bar(pos, total)
     marker = _question_emoji(question)
 
     options_text = "\n".join(
-        [f"<b>{opt['key']}.</b> {opt['label']}" for opt in question["options"]]
+        [f"<b>{opt['key']}.</b> {opt['label']}" for opt in options]
     )
     text = (
         f"<b>Вопрос {pos}/{total} {bar}</b>\n\n"
         f"{marker} {question['text']}\n\n"
         f"{options_text}"
     )
-    await message.answer(text, reply_markup=_question_keyboard(question))
+    await message.answer(text, reply_markup=_question_keyboard(question, options))
 
 
 def create_router(ctx: AppContext) -> Router:

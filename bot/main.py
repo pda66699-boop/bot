@@ -7,6 +7,7 @@ import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
+from . import __version__
 from .config import load_settings
 from .flows import AppContext, create_router
 from .scoring import load_data
@@ -16,6 +17,7 @@ from .storage import InMemoryStore, SQLiteStore
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    logging.info("Starting bot version %s", __version__)
     settings = load_settings()
     sheets = None
     if os.getenv("SHEETS_ENABLED", "0") == "1":
