@@ -19,10 +19,16 @@ async def main() -> None:
     settings = load_settings()
     sheets = None
     if os.getenv("SHEETS_ENABLED", "0") == "1":
-        sheets = GoogleSheetsLogger(
-            creds_path=os.getenv("SHEETS_CREDS", "service_account.json"),
-            sheet_name=os.getenv("SHEETS_NAME", "ApexSystem Bot Leads"),
-        )
+        try:
+            sheets = GoogleSheetsLogger(
+                creds_path=os.getenv("SHEETS_CREDS", "service_account.json"),
+                sheet_name=os.getenv("SHEETS_NAME", "ApexSystem Bot Leads"),
+            )
+            logging.info("Google Sheets logger initialized")
+        except Exception:
+            # Не роняем бота, если внешняя интеграция временно недоступна.
+            logging.exception("Google Sheets init failed, continuing without Sheets")
+            sheets = None
 
     data = load_data(settings.data_dir)
     sqlite = SQLiteStore(settings.db_path)

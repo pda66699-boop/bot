@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -46,6 +47,7 @@ class GoogleSheetsLogger:
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
         self.ws = client.open(sheet_name).sheet1
+        self.logger = logging.getLogger(__name__)
 
     def _find_row_by_user_id(self, user_id: int) -> int | None:
         user_id_str = str(user_id)
@@ -74,38 +76,48 @@ class GoogleSheetsLogger:
         return [self._serialize_value(key, payload) for key in self.COLUMN_ORDER]
 
     def ensure_user_row(self, user_data: dict[str, Any]) -> int:
-        user_id = int(user_data["telegram_id"])
-        row_num = self._find_row_by_user_id(user_id)
-        if row_num is not None:
-            return row_num
-        row = self._build_row(user_data)
-        self.ws.append_row(row, value_input_option="RAW")
-        return self._find_row_by_user_id(user_id) or 1
+        try:
+            user_id = int(user_data["telegram_id"])
+            row_num = self._find_row_by_user_id(user_id)
+            if row_num is not None:
+                return row_num
+            row = self._build_row(user_data)
+            self.ws.append_row(row, value_input_option="RAW")
+            return self._find_row_by_user_id(user_id) or 1
+        except Exception:
+            self.logger.exception("Sheets ensure_user_row failed")
+            return 1
 
     def update_user_row(self, user_id: int, data_dict: dict[str, Any]) -> None:
-        row_num = self._find_row_by_user_id(user_id)
-        if row_num is None:
-            row_num = self.ensure_user_row({"telegram_id": user_id})
+        try:
+            row_num = self._find_row_by_user_id(user_id)
+            if row_num is None:
+                row_num = self.ensure_user_row({"telegram_id": user_id})
 
-        # Обновляем только известные поля и пишем строку одним запросом.
-        current = self.ws.row_values(row_num)
-        row = current[:]
-        if len(row) < len(self.COLUMN_ORDER):
-            row.extend([""] * (len(self.COLUMN_ORDER) - len(row)))
+            # Обновляем только известные поля и пишем строку одним запросом.
+            current = self.ws.row_values(row_num)
+            row = current[:]
+            if len(row) < len(self.COLUMN_ORDER):
+                row.extend([""] * (len(self.COLUMN_ORDER) - len(row)))
 
-        merged_payload = {"telegram_id": user_id, **data_dict}
-        for idx, key in enumerate(self.COLUMN_ORDER):
-            if key in data_dict:
-                row[idx] = self._serialize_value(key, merged_payload)
+            merged_payload = {"telegram_id": user_id, **data_dict}
+            for idx, key in enumerate(self.COLUMN_ORDER):
+                if key in data_dict:
+                    row[idx] = self._serialize_value(key, merged_payload)
 
-        self.ws.update(
-            range_name=f"A{row_num}:{gspread.utils.rowcol_to_a1(row_num, len(self.COLUMN_ORDER))}",
-            values=[row[: len(self.COLUMN_ORDER)]],
-            value_input_option="RAW",
-        )
+            self.ws.update(
+                range_name=f"A{row_num}:{gspread.utils.rowcol_to_a1(row_num, len(self.COLUMN_ORDER))}",
+                values=[row[: len(self.COLUMN_ORDER)]],
+                value_input_option="RAW",
+            )
+        except Exception:
+            self.logger.exception("Sheets update_user_row failed for user_id=%s", user_id)
 
     # Оставляем совместимость для старых вызовов: теперь это upsert в одну строку пользователя.
     def append_lead(self, payload: dict[str, Any]) -> None:
-        user_id = int(payload["telegram_id"])
-        self.ensure_user_row(payload)
-        self.update_user_row(user_id, payload)
+        try:
+            user_id = int(payload["telegram_id"])
+            self.ensure_user_row(payload)
+            self.update_user_row(user_id, payload)
+        except Exception:
+            self.logger.exception("Sheets append_lead failed")
