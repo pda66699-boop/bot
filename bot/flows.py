@@ -91,14 +91,30 @@ def _shuffled_options(question: dict[str, Any], user_id: int) -> list[dict[str, 
     return options
 
 
-def _question_keyboard(question: dict[str, Any], options: list[dict[str, Any]]) -> InlineKeyboardMarkup:
+def _display_choices(options: list[dict[str, Any]]) -> list[dict[str, str]]:
+    # Пользователь всегда видит A/B/C/D в порядке сверху вниз,
+    # а внутри callback отправляем исходный ключ варианта для скоринга.
+    display_keys = ["A", "B", "C", "D"]
+    choices: list[dict[str, str]] = []
+    for idx, option in enumerate(options):
+        choices.append(
+            {
+                "display_key": display_keys[idx] if idx < len(display_keys) else str(idx + 1),
+                "option_key": option["key"],
+                "label": option["label"],
+            }
+        )
+    return choices
+
+
+def _question_keyboard(question: dict[str, Any], choices: list[dict[str, str]]) -> InlineKeyboardMarkup:
     rows = []
-    for option in options:
+    for choice in choices:
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=f"{option['key']}",
-                    callback_data=f"ans:{question['id']}:{option['key']}",
+                    text=choice["display_key"],
+                    callback_data=f"ans:{question['id']}:{choice['option_key']}",
                 )
             ]
         )
@@ -240,20 +256,19 @@ async def _send_current_question(message: Message, ctx: AppContext, user_id: int
     questions = ctx.data["questions"]
     question = questions[session.current_index]
     options = _shuffled_options(question, user_id)
+    choices = _display_choices(options)
     pos = session.current_index + 1
     total = len(questions)
     bar = _progress_bar(pos, total)
     marker = _question_emoji(question)
 
-    options_text = "\n".join(
-        [f"<b>{opt['key']}.</b> {opt['label']}" for opt in options]
-    )
+    options_text = "\n".join([f"<b>{ch['display_key']}.</b> {ch['label']}" for ch in choices])
     text = (
         f"<b>Вопрос {pos}/{total} {bar}</b>\n\n"
         f"{marker} {question['text']}\n\n"
         f"{options_text}"
     )
-    await message.answer(text, reply_markup=_question_keyboard(question, options))
+    await message.answer(text, reply_markup=_question_keyboard(question, choices))
 
 
 def create_router(ctx: AppContext) -> Router:
