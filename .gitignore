@@ -1,2 +1,15 @@
 venv/
 service_account.json
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+
+# Local data
+*.db
+bot.db
+
+# Env secrets
+.env
