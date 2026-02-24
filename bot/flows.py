@@ -82,8 +82,12 @@ def _shuffled_options(question: dict[str, Any], user_id: int) -> list[dict[str, 
     # Детеминированное перемешивание: разный порядок по пользователю/вопросу,
     # но стабильный при повторном показе того же вопроса.
     options = list(question["options"])
+    original = list(options)
     rnd = random.Random(f"{user_id}:{question['id']}")
     rnd.shuffle(options)
+    if options == original and len(options) > 1:
+        # Гарантируем, что порядок действительно меняется.
+        options = options[1:] + options[:1]
     return options
 
 
