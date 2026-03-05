@@ -86,6 +86,11 @@ class SQLiteStore:
               stage TEXT NOT NULL,
               confidence INTEGER,
               regress INTEGER,
+              profile_code TEXT,
+              idx_p INTEGER,
+              idx_a INTEGER,
+              idx_e INTEGER,
+              idx_i INTEGER,
               created_at TEXT NOT NULL
             )
             """
@@ -96,6 +101,11 @@ class SQLiteStore:
         self._ensure_column("results_history", "run_id", "TEXT")
         self._ensure_column("results_history", "confidence", "INTEGER")
         self._ensure_column("results_history", "regress", "INTEGER")
+        self._ensure_column("results_history", "profile_code", "TEXT")
+        self._ensure_column("results_history", "idx_p", "INTEGER")
+        self._ensure_column("results_history", "idx_a", "INTEGER")
+        self._ensure_column("results_history", "idx_e", "INTEGER")
+        self._ensure_column("results_history", "idx_i", "INTEGER")
         self.conn.commit()
 
     def _ensure_column(self, table: str, column: str, definition: str) -> None:
@@ -212,20 +222,45 @@ class SQLiteStore:
         )
         self.conn.commit()
 
-    def save_result(self, tg_id: int, stage: str, run_id: str, confidence: int, regress: bool) -> None:
+    def save_result(
+        self,
+        tg_id: int,
+        stage: str,
+        run_id: str,
+        confidence: int,
+        regress: bool,
+        profile_code: str | None = None,
+        indices: dict[str, int] | None = None,
+    ) -> None:
+        idx = indices or {}
         self.conn.execute(
             """
-            INSERT INTO results_history(run_id, tg_id, stage, confidence, regress, created_at)
-            VALUES(?, ?, ?, ?, ?, ?)
+            INSERT INTO results_history(
+              run_id, tg_id, stage, confidence, regress,
+              profile_code, idx_p, idx_a, idx_e, idx_i, created_at
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (run_id, tg_id, stage, int(confidence), int(regress), _now_iso()),
+            (
+                run_id,
+                tg_id,
+                stage,
+                int(confidence),
+                int(regress),
+                (profile_code or "").strip(),
+                int(idx.get("P", 0) or 0),
+                int(idx.get("A", 0) or 0),
+                int(idx.get("E", 0) or 0),
+                int(idx.get("I", 0) or 0),
+                _now_iso(),
+            ),
         )
         self.conn.commit()
 
     def get_last_result(self, tg_id: int) -> dict[str, Any] | None:
         row = self.conn.execute(
             """
-            SELECT run_id, stage, confidence, regress, created_at
+            SELECT run_id, stage, confidence, regress, profile_code, idx_p, idx_a, idx_e, idx_i, created_at
             FROM results_history
             WHERE tg_id = ?
             ORDER BY id DESC
@@ -243,13 +278,20 @@ class SQLiteStore:
             "stage": stage,
             "confidence": int(row["confidence"] or 0),
             "regress": bool(row["regress"] or 0),
+            "profile_code": (row["profile_code"] or "").strip(),
+            "indices": {
+                "P": int(row["idx_p"] or 0),
+                "A": int(row["idx_a"] or 0),
+                "E": int(row["idx_e"] or 0),
+                "I": int(row["idx_i"] or 0),
+            },
             "created_at": (row["created_at"] or "").strip(),
         }
 
     def get_recent_results(self, tg_id: int, limit: int = 5) -> list[dict[str, Any]]:
         rows = self.conn.execute(
             """
-            SELECT run_id, stage, confidence, regress, created_at
+            SELECT run_id, stage, confidence, regress, profile_code, idx_p, idx_a, idx_e, idx_i, created_at
             FROM results_history
             WHERE tg_id = ?
             ORDER BY id DESC
@@ -268,6 +310,13 @@ class SQLiteStore:
                     "stage": stage,
                     "confidence": int(row["confidence"] or 0),
                     "regress": bool(row["regress"] or 0),
+                    "profile_code": (row["profile_code"] or "").strip(),
+                    "indices": {
+                        "P": int(row["idx_p"] or 0),
+                        "A": int(row["idx_a"] or 0),
+                        "E": int(row["idx_e"] or 0),
+                        "I": int(row["idx_i"] or 0),
+                    },
                     "created_at": (row["created_at"] or "").strip(),
                 }
             )

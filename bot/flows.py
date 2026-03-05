@@ -241,13 +241,38 @@ def _format_result_date(raw_value: str) -> str:
 
 
 def _build_my_results_text(history: list[dict[str, Any]]) -> str:
+    dim_name = {
+        "P": "результат и клиент",
+        "A": "системность",
+        "E": "развитие",
+        "I": "командная связность",
+    }
+
+    def _skew(indices: dict[str, int]) -> str:
+        if not indices or all(int(v or 0) == 0 for v in indices.values()):
+            return "перекос: данные по индексам недоступны"
+        max_key = max(("P", "A", "E", "I"), key=lambda k: int(indices.get(k, 0) or 0))
+        min_key = min(("P", "A", "E", "I"), key=lambda k: int(indices.get(k, 0) or 0))
+        return f"перекос: сильная {max_key} ({dim_name[max_key]}), слабая {min_key} ({dim_name[min_key]})"
+
     if not history:
         return "🗂 У вас пока нет завершённых прохождений теста.\n\nНажмите «Пройти тест»."
     lines = ["🗂 Ваши последние результаты:\n"]
     for idx, row in enumerate(history[:5], start=1):
+        indices = row.get("indices", {}) or {}
+        profile = row.get("profile_code") or "-"
+        indices_line = (
+            f"P={int(indices.get('P', 0) or 0)}, "
+            f"A={int(indices.get('A', 0) or 0)}, "
+            f"E={int(indices.get('E', 0) or 0)}, "
+            f"I={int(indices.get('I', 0) or 0)}"
+        )
         lines.append(
             f"{idx}. {_format_result_date(str(row.get('created_at', '')))} — "
-            f"{row.get('stage', '—')} (уверенность: {int(row.get('confidence', 0) or 0)}%)"
+            f"{row.get('stage', '—')} (уверенность: {int(row.get('confidence', 0) or 0)}%)\n"
+            f"   PAEI: {profile}\n"
+            f"   Индексы: {indices_line}\n"
+            f"   {_skew(indices)}"
         )
     return "\n".join(lines)
 
@@ -497,6 +522,8 @@ async def _finalize_and_show_result(
         run_id,
         assessment["confidence"],
         bool(assessment["regress"]),
+        assessment.get("profile_code"),
+        assessment.get("indices"),
     )
 
     text = assessment["report_text"]
