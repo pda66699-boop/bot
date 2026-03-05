@@ -10,9 +10,10 @@ from google.oauth2.service_account import Credentials
 
 
 class GoogleSheetsLogger:
-    # Единая карта колонок нужна для постепенного обновления одной и той же строки.
+    # Append-only журнал прогонов.
     COLUMN_ORDER = [
         "created_at",
+        "run_id",
         "telegram_id",
         "username",
         "telegram_handle",
@@ -22,7 +23,15 @@ class GoogleSheetsLogger:
         "revenue",
         "offer_opt_in",
         "stage",
-        "second_stage",
+        "nearest_stage",
+        "profile_code",
+        "transition",
+        "hybrid",
+        "regress",
+        "idx_p",
+        "idx_a",
+        "idx_e",
+        "idx_i",
         "confidence",
         "confidence_percent",
         "owner_dependency",
@@ -37,6 +46,8 @@ class GoogleSheetsLogger:
         "raw_answers",
         "answers_sheet_text",
         "status",
+        "warnings",
+        "candidates_top3",
     ]
 
     def __init__(self, creds_path: str, sheet_name: str):
@@ -48,14 +59,6 @@ class GoogleSheetsLogger:
         client = gspread.authorize(creds)
         self.ws = client.open(sheet_name).sheet1
         self.logger = logging.getLogger(__name__)
-
-    def _find_row_by_user_id(self, user_id: int) -> int | None:
-        user_id_str = str(user_id)
-        ids = self.ws.col_values(2)
-        for idx, cell in enumerate(ids, start=1):
-            if cell.strip() == user_id_str:
-                return idx
-        return None
 
     def _serialize_value(self, key: str, payload: dict[str, Any]) -> Any:
         if key == "created_at":
@@ -75,49 +78,15 @@ class GoogleSheetsLogger:
     def _build_row(self, payload: dict[str, Any]) -> list[Any]:
         return [self._serialize_value(key, payload) for key in self.COLUMN_ORDER]
 
-    def ensure_user_row(self, user_data: dict[str, Any]) -> int:
+    def append_run_row(self, data_dict: dict[str, Any]) -> None:
         try:
-            user_id = int(user_data["telegram_id"])
-            row_num = self._find_row_by_user_id(user_id)
-            if row_num is not None:
-                return row_num
-            row = self._build_row(user_data)
+            if not data_dict.get("run_id"):
+                self.logger.warning("append_run_row skipped: missing run_id")
+                return
+            row = self._build_row(data_dict)
             self.ws.append_row(row, value_input_option="RAW")
-            return self._find_row_by_user_id(user_id) or 1
         except Exception:
-            self.logger.exception("Sheets ensure_user_row failed")
-            return 1
+            self.logger.exception("Sheets append_run_row failed")
 
-    def update_user_row(self, user_id: int, data_dict: dict[str, Any]) -> None:
-        try:
-            row_num = self._find_row_by_user_id(user_id)
-            if row_num is None:
-                row_num = self.ensure_user_row({"telegram_id": user_id})
-
-            # Обновляем только известные поля и пишем строку одним запросом.
-            current = self.ws.row_values(row_num)
-            row = current[:]
-            if len(row) < len(self.COLUMN_ORDER):
-                row.extend([""] * (len(self.COLUMN_ORDER) - len(row)))
-
-            merged_payload = {"telegram_id": user_id, **data_dict}
-            for idx, key in enumerate(self.COLUMN_ORDER):
-                if key in data_dict:
-                    row[idx] = self._serialize_value(key, merged_payload)
-
-            self.ws.update(
-                range_name=f"A{row_num}:{gspread.utils.rowcol_to_a1(row_num, len(self.COLUMN_ORDER))}",
-                values=[row[: len(self.COLUMN_ORDER)]],
-                value_input_option="RAW",
-            )
-        except Exception:
-            self.logger.exception("Sheets update_user_row failed for user_id=%s", user_id)
-
-    # Оставляем совместимость для старых вызовов: теперь это upsert в одну строку пользователя.
     def append_lead(self, payload: dict[str, Any]) -> None:
-        try:
-            user_id = int(payload["telegram_id"])
-            self.ensure_user_row(payload)
-            self.update_user_row(user_id, payload)
-        except Exception:
-            self.logger.exception("Sheets append_lead failed")
+        self.append_run_row(payload)

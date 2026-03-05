@@ -1,0 +1,32 @@
+report:
+  section_order:
+    - stage_header
+    - profile
+    - description
+    - indices
+    - risks
+    - normal_problems
+    - anomalous_problems
+    - actions
+    - dont
+  risk_count: 5
+  actions_max: 5
+  dont_max: 5
+  transition_label: "Переход"
+  hybrid_label: "Гибрид"
+  regress_label: "Регресс"
+
+defaults:
+  normal_problems_placeholder: "-"
+  extra_risks:
+    - "Рост внутренней инерции и потери скорости решений."
+    - "Снижение качества координации между функциями."
+  dont_by_deficit:
+    P:
+      - "Не подменять результат отчётностью и процессом."
+    A:
+      - "Не откладывать управленческий контур и дисциплину исполнения."
+    E:
+      - "Не отказываться от долгосрочных инициатив."
+    I:
+      - "Не допускать политизации вместо совместной ответственности."

@@ -1,0 +1,97 @@
+config:
+  transition_delta: 7
+  hybrid_delta: 5
+  regress_confidence_min: 70
+  history_window: 5
+
+stages:
+  - id: "Младенчество"
+    order: 1
+    next_stage: "Давай-давай"
+    admissibility:
+      P: {min: 60}
+      A: {max: 59}
+      E: {max: 59}
+      I: {max: 59}
+    target: {P: 60, A: 40, E: 40, I: 40}
+
+  - id: "Давай-давай"
+    order: 2
+    next_stage: "Юность"
+    admissibility:
+      P: {min: 60}
+      E: {min: 60}
+      I: {max: 59}
+    target: {P: 80, A: 50, E: 80, I: 50}
+
+  - id: "Юность"
+    order: 3
+    next_stage: "Ранний Расцвет"
+    admissibility:
+      A: {min: 60}
+      E: {min: 60}
+      I: {max: 59}
+      P: {min: 25}
+    targets:
+      - {P: 70, A: 70, E: 70, I: 40}
+      - {P: 50, A: 80, E: 80, I: 50}
+
+  - id: "Ранний Расцвет"
+    order: 4
+    next_stage: "Расцвет"
+    admissibility:
+      P: {min: 70}
+      A: {min: 60}
+      E: {min: 60}
+      I: {min: 50, max: 69}
+    target: {P: 75, A: 70, E: 70, I: 60}
+
+  - id: "Расцвет"
+    order: 5
+    next_stage: "Стабильность"
+    admissibility:
+      I: {min: 60}
+      E: {min: 60}
+      P: {min: 50}
+      A: {min: 50}
+    target: {P: 70, A: 60, E: 75, I: 75}
+
+  - id: "Стабильность"
+    order: 6
+    next_stage: "Аристократизм"
+    admissibility:
+      P: {min: 60}
+      A: {min: 60}
+      I: {min: 60}
+      E: {max: 59}
+    target: {P: 80, A: 80, E: 40, I: 80}
+
+  - id: "Аристократизм"
+    order: 7
+    next_stage: "Ранний бюрократизм"
+    admissibility:
+      A: {min: 60}
+      I: {min: 60}
+      E: {max: 49}
+      P: {max: 59}
+    target: {P: 50, A: 80, E: 30, I: 80}
+
+  - id: "Ранний бюрократизм"
+    order: 8
+    next_stage: "Бюрократия"
+    admissibility:
+      A: {min: 60}
+      P: {max: 49}
+      E: {max: 49}
+      I: {max: 59}
+    target: {P: 35, A: 75, E: 30, I: 45}
+
+  - id: "Бюрократия"
+    order: 9
+    next_stage: null
+    admissibility:
+      A: {min: 60}
+      P: {max: 24}
+      E: {max: 24}
+      I: {max: 24}
+    target: {P: 20, A: 70, E: 20, I: 20}

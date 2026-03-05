@@ -1,0 +1,35 @@
+report:
+  section_order:
+    - stage_header
+    - profile
+    - description
+    - risks
+    - normal_problems
+    - anomalous_problems
+    - actions
+    - dont
+    - indices
+  risk_count: 5
+  actions_min: 5
+  actions_max: 7
+  transition_label: "Переход"
+  hybrid_label: "Гибрид"
+  regress_label: "Регресс/откат"
+
+defaults:
+  normal_problems:
+    - "Переходные управленческие трения при росте сложности."
+  anomalous_problems:
+    - "Системные признаки старения и политизации."
+  extra_risks:
+    - "Потеря темпа изменений."
+    - "Падение качества управленческих решений."
+  dont_by_deficit:
+    P:
+      - "Не жертвовать клиентским результатом ради внутреннего удобства."
+    A:
+      - "Не откладывать дисциплину учета и исполнения решений."
+    E:
+      - "Не замыкаться только на текущей операционке."
+    I:
+      - "Не допускать политизации вместо совместного решения причин."

@@ -77,9 +77,25 @@ class SQLiteStore:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS results_history (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              run_id TEXT,
+              tg_id INTEGER NOT NULL,
+              stage TEXT NOT NULL,
+              confidence INTEGER,
+              regress INTEGER,
+              created_at TEXT NOT NULL
+            )
+            """
+        )
         self._ensure_column("contacts", "tg_link", "TEXT")
         self._ensure_column("contacts", "offer_opt_in", "INTEGER NOT NULL DEFAULT 0")
         self._ensure_column("users", "status", "TEXT NOT NULL DEFAULT 'not_started'")
+        self._ensure_column("results_history", "run_id", "TEXT")
+        self._ensure_column("results_history", "confidence", "INTEGER")
+        self._ensure_column("results_history", "regress", "INTEGER")
         self.conn.commit()
 
     def _ensure_column(self, table: str, column: str, definition: str) -> None:
@@ -195,3 +211,64 @@ class SQLiteStore:
             (tg_link, int(offer_opt_in), _now_iso(), tg_id),
         )
         self.conn.commit()
+
+    def save_result(self, tg_id: int, stage: str, run_id: str, confidence: int, regress: bool) -> None:
+        self.conn.execute(
+            """
+            INSERT INTO results_history(run_id, tg_id, stage, confidence, regress, created_at)
+            VALUES(?, ?, ?, ?, ?, ?)
+            """,
+            (run_id, tg_id, stage, int(confidence), int(regress), _now_iso()),
+        )
+        self.conn.commit()
+
+    def get_last_result(self, tg_id: int) -> dict[str, Any] | None:
+        row = self.conn.execute(
+            """
+            SELECT run_id, stage, confidence, regress, created_at
+            FROM results_history
+            WHERE tg_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (tg_id,),
+        ).fetchone()
+        if not row:
+            return None
+        stage = (row["stage"] or "").strip()
+        if not stage:
+            return None
+        return {
+            "run_id": (row["run_id"] or "").strip(),
+            "stage": stage,
+            "confidence": int(row["confidence"] or 0),
+            "regress": bool(row["regress"] or 0),
+            "created_at": (row["created_at"] or "").strip(),
+        }
+
+    def get_recent_results(self, tg_id: int, limit: int = 5) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            """
+            SELECT run_id, stage, confidence, regress, created_at
+            FROM results_history
+            WHERE tg_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (tg_id, int(limit)),
+        ).fetchall()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            stage = (row["stage"] or "").strip()
+            if not stage:
+                continue
+            out.append(
+                {
+                    "run_id": (row["run_id"] or "").strip(),
+                    "stage": stage,
+                    "confidence": int(row["confidence"] or 0),
+                    "regress": bool(row["regress"] or 0),
+                    "created_at": (row["created_at"] or "").strip(),
+                }
+            )
+        return out

@@ -4,8 +4,8 @@ import asyncio
 import os
 import random
 from dataclasses import dataclass
-from types import SimpleNamespace
 from typing import Any
+from uuid import uuid4
 
 from aiogram import Bot, F, Router
 from aiogram.filters import CommandStart
@@ -13,20 +13,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from .scoring import (
-    STAGE_ORDER,
-    calculate_confidence,
-    calculate_indices,
-    calculate_stage_scores,
-    select_winner,
-)
+from .scoring import evaluate_assessment
 from .storage import InMemoryStore, SQLiteStore
-from .texts import (
-    CONTACTS_INTRO,
-    DURATION_TEXT,
-    MOTIVATION_TEXT,
-    START_TEXT,
-)
+from .texts import CONTACTS_INTRO, DURATION_TEXT, MOTIVATION_TEXT, START_TEXT
 
 
 class ContactForm(StatesGroup):
@@ -66,34 +55,25 @@ def _progress_bar(current: int, total: int, width: int = 5) -> str:
 
 def _question_emoji(question: dict[str, Any]) -> str:
     by_dimension = {
-        "decisions": "🧠",
-        "processes": "⚙️",
-        "owner_dependency": "👤",
-        "kpi_contour": "📊",
-        "decision_speed": "⏱️",
-        "roles_conflicts": "🤝",
-        "growth_sustainability": "📈",
-        "finance_predictability": "💰",
+        "P": "📦",
+        "A": "⚙️",
+        "E": "🚀",
+        "I": "🤝",
     }
-    return by_dimension.get(question.get("dimension", ""), "🔹")
+    return by_dimension.get(question.get("dim", ""), "🔹")
 
 
 def _shuffled_options(question: dict[str, Any], user_id: int) -> list[dict[str, Any]]:
-    # Детеминированное перемешивание: разный порядок по пользователю/вопросу,
-    # но стабильный при повторном показе того же вопроса.
     options = list(question["options"])
     original = list(options)
     rnd = random.Random(f"{user_id}:{question['id']}")
     rnd.shuffle(options)
     if options == original and len(options) > 1:
-        # Гарантируем, что порядок действительно меняется.
         options = options[1:] + options[:1]
     return options
 
 
 def _display_choices(options: list[dict[str, Any]]) -> list[dict[str, str]]:
-    # Пользователь всегда видит A/B/C/D в порядке сверху вниз,
-    # а внутри callback отправляем исходный ключ варианта для скоринга.
     display_keys = ["A", "B", "C", "D"]
     choices: list[dict[str, str]] = []
     for idx, option in enumerate(options):
@@ -128,12 +108,6 @@ def _revenue_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def _skip_keyboard(skip_key: str, title: str = "Пропустить") -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=title, callback_data=skip_key)]]
-    )
-
-
 def _tg_share_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -151,65 +125,63 @@ def _post_offer_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def _build_result_text(
-    winner_stage: dict[str, Any],
-    second_stage_name: str,
-    confidence: int,
-    indices: dict[str, int],
-) -> str:
-    risks = "\n".join([f"- {x}" for x in winner_stage["risks"]])
-    do = "\n".join([f"- {x}" for x in winner_stage["do"]])
-    dont = "\n".join([f"- {x}" for x in winner_stage["dont"]])
-
-    if confidence < 40:
-        header = (
-            "⚠ Бизнес в гибридной фазе развития.\n"
-            f'Переход от стадии "{second_stage_name}" к "{winner_stage["name"]}"\n\n'
-            "Признаки разных уровней зрелости сосуществуют одновременно."
-        )
-    else:
-        header = f"<b>🏁 Ваша стадия: {winner_stage['name']}</b>"
-
+def _build_booking_prefill_text(assessment: dict[str, Any], tg_handle: str) -> str:
+    indices = assessment["indices"]
+    second_best_line = (
+        f"2-й кандидат по distance: {assessment['second_best_stage']}\n"
+        if assessment.get("second_best_stage") and assessment["second_best_stage"] != assessment["stage"]
+        else ""
+    )
     return (
-        f"{header}\n\n"
-        f"<b>🧭 Описание</b>\n{winner_stage['description']}\n\n"
-        f"<b>⚠️ Ключевые риски</b>\n{risks}\n\n"
-        f"<b>✅ Что делать</b>\n{do}\n\n"
-        f"<b>⛔ Чего не делать</b>\n{dont}\n\n"
-        f"<b>📈 Индексы (0-100)</b>\n"
-        f"- Зависимость от собственника: {indices['owner_dependency']}\n"
-        f"- Формализация процессов: {indices['process_formalization']}\n"
-        f"- Управленческий контур: {indices['management_contour']}"
+        "Добрый день! Хочу получить полный разбор по итогам теста Адизеса.\n\n"
+        f"Стадия: {assessment['stage']}\n"
+        f"{second_best_line}"
+        f"Профиль: {assessment['profile_code']}\n"
+        f"Переход: {'да' if assessment['transition'] else 'нет'}\n"
+        f"Гибрид: {'да' if assessment['hybrid'] else 'нет'}\n"
+        f"Уверенность: {assessment['confidence']}%\n"
+        f"Регресс: {'да' if assessment['regress'] else 'нет'}\n"
+        f"Warnings: {', '.join(assessment.get('warnings', [])) or 'нет'}\n"
+        "Индексы:\n"
+        f"- P: {indices['P']}\n"
+        f"- A: {indices['A']}\n"
+        f"- E: {indices['E']}\n"
+        f"- I: {indices['I']}\n\n"
+        f"Мой Telegram: {tg_handle}"
     )
 
 
-def _build_booking_prefill_text(
-    winner_stage: dict[str, Any],
-    confidence: int,
-    indices: dict[str, int],
-    tg_handle: str,
+def _build_admin_summary_text(
+    assessment: dict[str, Any],
+    run_id: str,
+    respondent_name: str,
+    respondent_revenue: str,
+    shared_tg: bool,
+    telegram_link: str,
 ) -> str:
-    risks = "\n".join([f"- {x}" for x in winner_stage["risks"]])
-    do = "\n".join([f"- {x}" for x in winner_stage["do"]])
-    dont = "\n".join([f"- {x}" for x in winner_stage["dont"]])
-
+    idx = assessment["indices"]
+    second_best_line = (
+        f"📊 2-й кандидат по distance: {assessment['second_best_stage']}\n"
+        if assessment.get("second_best_stage") and assessment["second_best_stage"] != assessment["stage"]
+        else ""
+    )
     return (
-        "Добрый день! Хочу получить полный разбор по итогам теста Адизеса.\n\n"
-        f"Стадия: {winner_stage['name']}\n"
-        f"Уверенность: {confidence}%\n"
-        f"Индексы:\n"
-        f"- Зависимость от собственника: {indices['owner_dependency']}\n"
-        f"- Формализация процессов: {indices['process_formalization']}\n"
-        f"- Управленческий контур: {indices['management_contour']}\n\n"
-        "Выжимка:\n"
-        f"Описание: {winner_stage['description']}\n\n"
-        "Ключевые риски:\n"
-        f"{risks}\n\n"
-        "Что делать:\n"
-        f"{do}\n\n"
-        "Чего не делать:\n"
-        f"{dont}\n\n"
-        f"Мой Telegram: {tg_handle}"
+        "🆕 Новый респондент\n\n"
+        f"👤 Имя: {respondent_name}\n"
+        f"💰 Выручка: {respondent_revenue}\n"
+        f"📨 Поделился ссылкой на Telegram: {'Да' if shared_tg else 'Нет'}\n\n"
+        f"📊 Стадия: {assessment['stage']}\n"
+        f"{second_best_line}"
+        f"🆔 Run ID: {run_id}\n"
+        f"🧬 Профиль PAEI: {assessment['profile_code']}\n"
+        f"↔️ Переход: {'да' if assessment['transition'] else 'нет'}\n"
+        f"🧩 Гибрид: {'да' if assessment['hybrid'] else 'нет'}\n"
+        f"🎯 Уверенность: {assessment['confidence']}%\n"
+        f"⏪ Регресс: {'да' if assessment['regress'] else 'нет'}\n\n"
+        f"⚠️ Warnings: {', '.join(assessment.get('warnings', [])) or 'нет'}\n"
+        f"📈 Индексы: P={idx['P']}, A={idx['A']}, E={idx['E']}, I={idx['I']}\n"
+        f"🧮 Дистанции до стадий: {assessment.get('distances', {})}\n\n"
+        f"🔗 Профиль: {telegram_link}"
     )
 
 
@@ -225,9 +197,7 @@ def _build_answers_sheet_text(
             option = next((opt for opt in question["options"] if opt["key"] == answer_key), None)
             if option:
                 answer_label = option["label"]
-        lines.append(
-            f"{idx}. На вопрос «{question['text']}» респондент ответил: {answer_label}."
-        )
+        lines.append(f"{idx}. На вопрос «{question['text']}» респондент ответил: {answer_label}.")
     return "\n".join(lines)
 
 
@@ -247,7 +217,6 @@ async def _send_delayed_offer_message(bot: Bot, chat_id: int) -> None:
     try:
         await bot.send_message(chat_id=chat_id, text=text, reply_markup=_post_offer_keyboard())
     except Exception:
-        # Ошибка отложенной отправки не должна ломать основной сценарий.
         pass
 
 
@@ -285,37 +254,11 @@ def create_router(ctx: AppContext) -> Router:
         ctx.memory.reset(user.id)
         ctx.sqlite.clear_answers(user.id)
         await state.clear()
-        if ctx.sheets:
-            ctx.sheets.ensure_user_row(
-                {
-                    "telegram_id": user.id,
-                    "username": user.username or "",
-                    "telegram_handle": f"@{user.username}" if user.username else f"id:{user.id}",
-                    "telegram_link": _tg_link_by_username(user.id, user.username),
-                    "full_name": full_name,
-                    "status": STATUS_NOT_STARTED,
-                    "raw_answers": {},
-                }
-            )
-            ctx.sheets.update_user_row(
-                user.id,
-                {
-                    "username": user.username or "",
-                    "telegram_handle": f"@{user.username}" if user.username else f"id:{user.id}",
-                    "telegram_link": _tg_link_by_username(user.id, user.username),
-                    "full_name": full_name,
-                    "status": STATUS_NOT_STARTED,
-                    "raw_answers": {},
-                },
-            )
 
         kb = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="🚀 Начать тест", callback_data="start_test")]]
         )
-        await message.answer(
-            f"{START_TEXT}\n\n{DURATION_TEXT}\n\n{MOTIVATION_TEXT}",
-            reply_markup=kb,
-        )
+        await message.answer(f"{START_TEXT}\n\n{DURATION_TEXT}\n\n{MOTIVATION_TEXT}", reply_markup=kb)
 
     @router.callback_query(F.data == "start_test")
     async def start_test(callback: CallbackQuery, state: FSMContext) -> None:
@@ -360,17 +303,6 @@ def create_router(ctx: AppContext) -> Router:
         session.answers[question_id] = option_key
         ctx.sqlite.save_answer(user.id, question_id, option_key)
         ctx.sqlite.set_status(user.id, STATUS_IN_PROGRESS)
-        if ctx.sheets:
-            ctx.sheets.update_user_row(
-                user.id,
-                {
-                    "username": user.username or "",
-                    "telegram_handle": f"@{user.username}" if user.username else f"id:{user.id}",
-                    "telegram_link": _tg_link_by_username(user.id, user.username),
-                    "raw_answers": session.answers,
-                    "status": STATUS_IN_PROGRESS,
-                },
-            )
         session.current_index += 1
 
         if session.current_index < len(questions):
@@ -379,27 +311,13 @@ def create_router(ctx: AppContext) -> Router:
             return
 
         ctx.sqlite.set_status(user.id, STATUS_COMPLETED_NO_SHARE)
-        if ctx.sheets:
-            ctx.sheets.update_user_row(
-                user.id,
-                {
-                    "status": STATUS_COMPLETED_NO_SHARE,
-                    "raw_answers": session.answers,
-                },
-            )
         await state.set_state(ContactForm.name)
         if callback.message:
-            await callback.message.answer(
-                f"{CONTACTS_INTRO}\n\n👤 Введите имя:",
-            )
+            await callback.message.answer(f"{CONTACTS_INTRO}\n\n👤 Введите имя:")
+
     @router.message(ContactForm.name)
     async def contact_name(message: Message, state: FSMContext) -> None:
         await state.update_data(name=message.text.strip())
-        if ctx.sheets and message.from_user:
-            ctx.sheets.update_user_row(
-                message.from_user.id,
-                {"full_name": message.text.strip(), "status": STATUS_COMPLETED_NO_SHARE},
-            )
         await state.set_state(ContactForm.revenue)
         await message.answer("💰 Выберите диапазон выручки:", reply_markup=_revenue_keyboard())
 
@@ -408,11 +326,6 @@ def create_router(ctx: AppContext) -> Router:
         key = callback.data.split(":")[1]
         revenue = REVENUE_MAP.get(key, key)
         await state.update_data(revenue=revenue, offer_opt_in=False, tg_link=None)
-        if ctx.sheets:
-            ctx.sheets.update_user_row(
-                callback.from_user.id,
-                {"revenue": revenue, "status": STATUS_COMPLETED_NO_SHARE},
-            )
         await state.set_state(ContactForm.tg_share)
         await callback.answer()
         if callback.message:
@@ -426,11 +339,6 @@ def create_router(ctx: AppContext) -> Router:
     async def tg_share_no(callback: CallbackQuery, state: FSMContext) -> None:
         await state.update_data(offer_opt_in=False, tg_link=None)
         ctx.sqlite.set_status(callback.from_user.id, STATUS_COMPLETED_NO_SHARE)
-        if ctx.sheets:
-            ctx.sheets.update_user_row(
-                callback.from_user.id,
-                {"offer_opt_in": False, "status": STATUS_COMPLETED_NO_SHARE},
-            )
         await callback.answer()
         if callback.message:
             await _finalize_and_show_result(callback.message, callback.from_user.id, state, ctx)
@@ -441,11 +349,6 @@ def create_router(ctx: AppContext) -> Router:
         tg_link = _tg_link_by_username(user.id, user.username)
         await state.update_data(offer_opt_in=True, tg_link=tg_link)
         ctx.sqlite.set_status(user.id, STATUS_COMPLETED_SHARED)
-        if ctx.sheets:
-            ctx.sheets.update_user_row(
-                user.id,
-                {"offer_opt_in": True, "telegram_link": tg_link, "status": STATUS_COMPLETED_SHARED},
-            )
         await callback.answer("Ссылка сохранена ✅")
         if callback.message:
             await _finalize_and_show_result(callback.message, user.id, state, ctx)
@@ -456,11 +359,6 @@ def create_router(ctx: AppContext) -> Router:
         tg_link = _tg_link_by_username(user.id, user.username)
         ctx.sqlite.update_offer_opt_in(user.id, tg_link=tg_link, offer_opt_in=True)
         ctx.sqlite.set_status(user.id, STATUS_COMPLETED_SHARED)
-        if ctx.sheets:
-            ctx.sheets.update_user_row(
-                user.id,
-                {"offer_opt_in": True, "telegram_link": tg_link, "status": STATUS_COMPLETED_SHARED},
-            )
         await callback.answer("Отлично, свяжемся с вами в Telegram ✅")
         if callback.message:
             await callback.message.edit_reply_markup(reply_markup=None)
@@ -477,7 +375,7 @@ async def _finalize_and_show_result(
 ) -> None:
     form = await state.get_data()
     db_username = ctx.sqlite.get_username(user_id)
-    user = SimpleNamespace(username=db_username) if db_username else message.from_user
+    respondent_username = db_username
     tg_handle = f"@{db_username}" if db_username else f"id:{user_id}"
     respondent_tg_link = form.get("tg_link") or (
         f"https://t.me/{db_username}" if db_username else f"tg://user?id={user_id}"
@@ -497,100 +395,77 @@ async def _finalize_and_show_result(
     session.contacts = form
     answers = session.answers or ctx.sqlite.get_answers(user_id)
 
-    stage_scores = calculate_stage_scores(answers, ctx.data["questions_by_id"])
-    winner_name, winner_score, runner_up_score = select_winner(
-        stage_scores,
-        answers,
-        ctx.data["questions_by_id"],
+    run_id = str(uuid4())
+    history = ctx.sqlite.get_recent_results(user_id, limit=5)
+    assessment = evaluate_assessment(answers, ctx.data, history=history)
+    ctx.sqlite.save_result(
+        user_id,
+        assessment["stage"],
+        run_id,
+        assessment["confidence"],
+        bool(assessment["regress"]),
     )
-    stage_scores_sorted = sorted(stage_scores.items(), key=lambda x: x[1], reverse=True)
-    second_stage_name = next((name for name, _ in stage_scores_sorted if name != winner_name), winner_name)
-    confidence = calculate_confidence(winner_score, runner_up_score, sum(stage_scores.values()))
-    indices = calculate_indices(answers)
-    winner_stage = ctx.data["stage_by_name"][winner_name]
 
-    text = _build_result_text(winner_stage, second_stage_name, confidence, indices)
-    booking_prefill = _build_booking_prefill_text(
-        winner_stage,
-        confidence,
-        indices,
-        respondent_tg_link,
-    )
-    telegram_link = (
-        f"https://t.me/{user.username}"
-        if user and user.username
-        else f"tg://user?id={user_id}"
-    )
+    text = assessment["report_text"]
+    booking_prefill = _build_booking_prefill_text(assessment, respondent_tg_link)
+    telegram_link = respondent_tg_link
+
     if ctx.sheets:
         answers_sheet_text = _build_answers_sheet_text(ctx.data["questions"], answers)
-        ctx.sheets.ensure_user_row(
+        winner_stage = ctx.data["stage_by_name"][assessment["stage"]]
+        ctx.sheets.append_run_row(
             {
                 "telegram_id": user_id,
-                "username": (user.username if user else None),
-            }
+                "username": respondent_username,
+                "telegram_link": telegram_link,
+                "telegram_handle": tg_handle,
+                "full_name": form.get("name"),
+                "company": "Не указано",
+                "revenue": form.get("revenue"),
+                "offer_opt_in": bool(form.get("offer_opt_in")),
+                "stage": assessment["stage"],
+                "nearest_stage": assessment["second_best_stage"],
+                "run_id": run_id,
+                "profile_code": assessment["profile_code"],
+                "transition": bool(assessment["transition"]),
+                "hybrid": assessment["hybrid"],
+                "regress": assessment["regress"],
+                "confidence": assessment["confidence"],
+                "warnings": ", ".join(assessment.get("warnings", [])),
+                "candidates_top3": ", ".join(
+                    [f"{idx + 1}) {item['stage']} ({item['distance']})" for idx, item in enumerate(assessment.get("candidates", [])[:3])]
+                ),
+                "idx_p": assessment["indices"]["P"],
+                "idx_a": assessment["indices"]["A"],
+                "idx_e": assessment["indices"]["E"],
+                "idx_i": assessment["indices"]["I"],
+                "stage_description": winner_stage.get("description", ""),
+                "risks": winner_stage.get("risks", []),
+                "do": winner_stage.get("next_actions_base", []),
+                "dont": winner_stage.get("dont", []),
+                "raw_stage_scores": assessment.get("distances", {}),
+                "booking_prefill_text": booking_prefill,
+                "raw_answers": answers,
+                "answers_sheet_text": answers_sheet_text,
+                "status": ctx.sqlite.get_status(user_id),
+            },
         )
-        ctx.sheets.update_user_row(user_id, {
-            "telegram_id": user_id,
-            "username": (user.username if user else None),
-            "telegram_link": telegram_link,
-            "telegram_handle": tg_handle,
-            "full_name": form.get("name"),
-            "company": "Не указано",
-            "revenue": form.get("revenue"),
-            "offer_opt_in": bool(form.get("offer_opt_in")),
-            "stage": winner_stage["name"],
-            "second_stage": second_stage_name,
-            "confidence": confidence,
-            "confidence_percent": confidence,
-            "owner_dependency": indices["owner_dependency"],
-            "process_formalization": indices["process_formalization"],
-            "management_contour": indices["management_contour"],
-            "stage_description": winner_stage["description"],
-            "risks": winner_stage["risks"],
-            "do": winner_stage["do"],
-            "dont": winner_stage["dont"],
-            "stage_scores": stage_scores,
-            "raw_stage_scores": stage_scores,
-            "booking_prefill_text": booking_prefill,
-            "raw_answers": answers,
-            "answers_sheet_text": answers_sheet_text,
-            "status": ctx.sqlite.get_status(user_id),
-        })
 
     admin_id = os.getenv("ADMIN_ID")
-
     if admin_id:
         respondent_name = (form.get("name") or "").strip() or "Не указано"
         respondent_revenue = (form.get("revenue") or "").strip() or "Не указано"
         shared_tg = bool(form.get("offer_opt_in"))
-        risks_text = "\n".join([f"- {x}" for x in winner_stage["risks"]])
-        do_text = "\n".join([f"- {x}" for x in winner_stage["do"]])
-        dont_text = "\n".join([f"- {x}" for x in winner_stage["dont"]])
-
-        summary = (
-            f"🆕 Новый респондент\n\n"
-            f"👤 Имя: {respondent_name}\n"
-            f"💰 Выручка: {respondent_revenue}\n"
-            f"📨 Поделился ссылкой на Telegram: {'Да' if shared_tg else 'Нет'}\n\n"
-            f"📊 Победившая стадия: {winner_stage['name']}\n"
-            f"📊 Вторая стадия: {second_stage_name}\n"
-            f"📈 Уверенность результата: {confidence}%\n\n"
-            f"🔹 Зависимость от собственника: {indices['owner_dependency']}\n"
-            f"🔹 Формализация процессов: {indices['process_formalization']}\n"
-            f"🔹 Управленческий контур: {indices['management_contour']}\n\n"
-            f"🧮 Баллы по стадиям:\n"
-            f"{chr(10).join([f'- {stage}: {stage_scores.get(stage, 0)}' for stage in STAGE_ORDER])}\n\n"
-            f"🧭 Описание:\n{winner_stage['description']}\n\n"
-            f"⚠️ Риски:\n{risks_text}\n\n"
-            f"✅ Что делать:\n{do_text}\n\n"
-            f"⛔ Чего не делать:\n{dont_text}\n\n"
-            f"🔗 Профиль: {telegram_link}"
+        summary = _build_admin_summary_text(
+            assessment=assessment,
+            run_id=run_id,
+            respondent_name=respondent_name,
+            respondent_revenue=respondent_revenue,
+            shared_tg=shared_tg,
+            telegram_link=telegram_link,
         )
+        await message.bot.send_message(chat_id=int(admin_id), text=summary)
 
-        await message.bot.send_message(
-            chat_id=int(admin_id),
-            text=summary,
-        )
     await message.answer(text)
     asyncio.create_task(_send_delayed_offer_message(message.bot, user_id))
     await state.clear()
