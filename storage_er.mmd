@@ -1,0 +1,36 @@
+erDiagram
+  ORG ||--o{ RUN : has
+  RUN ||--o{ ANSWER : has
+  RUN ||--|| RESULT : produces
+
+  ORG {
+    string org_id
+    string org_name
+    datetime created_at
+  }
+  RUN {
+    string run_id
+    string org_id
+    string user_id
+    datetime started_at
+    datetime finished_at
+  }
+  ANSWER {
+    string run_id
+    string question_id
+    string dim
+    string option
+    int points
+  }
+  RESULT {
+    string run_id
+    int idx_P
+    int idx_A
+    int idx_E
+    int idx_I
+    string profile_code
+    string stage
+    string transition
+    bool regress
+    string report_text
+  }

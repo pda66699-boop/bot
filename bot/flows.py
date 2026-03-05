@@ -4,6 +4,7 @@ import asyncio
 import os
 import random
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -11,7 +12,14 @@ from aiogram import Bot, F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
+)
 
 from .scoring import evaluate_assessment
 from .storage import InMemoryStore, SQLiteStore
@@ -38,6 +46,8 @@ STATUS_NOT_STARTED = "not_started"
 STATUS_IN_PROGRESS = "in_progress"
 STATUS_COMPLETED_NO_SHARE = "completed_no_share"
 STATUS_COMPLETED_SHARED = "completed_shared"
+MENU_START_TEST = "Пройти тест"
+MENU_MY_RESULTS = "Мои результаты"
 
 
 @dataclass
@@ -98,7 +108,24 @@ def _question_keyboard(question: dict[str, Any], choices: list[dict[str, str]]) 
                 )
             ]
         )
+    rows.append(
+        [
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="nav:back"),
+            InlineKeyboardButton(text="✖️ Отмена", callback_data="nav:cancel"),
+        ]
+    )
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _main_menu_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=MENU_START_TEST)],
+            [KeyboardButton(text=MENU_MY_RESULTS)],
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Выберите действие",
+    )
 
 
 def _revenue_keyboard() -> InlineKeyboardMarkup:
@@ -205,6 +232,35 @@ def _tg_link_by_username(user_id: int, username: str | None) -> str:
     return f"https://t.me/{username}" if username else f"tg://user?id={user_id}"
 
 
+def _format_result_date(raw_value: str) -> str:
+    try:
+        dt = datetime.fromisoformat(raw_value)
+        return dt.strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return raw_value or "-"
+
+
+def _build_my_results_text(history: list[dict[str, Any]]) -> str:
+    if not history:
+        return "🗂 У вас пока нет завершённых прохождений теста.\n\nНажмите «Пройти тест»."
+    lines = ["🗂 Ваши последние результаты:\n"]
+    for idx, row in enumerate(history[:5], start=1):
+        lines.append(
+            f"{idx}. {_format_result_date(str(row.get('created_at', '')))} — "
+            f"{row.get('stage', '—')} (уверенность: {int(row.get('confidence', 0) or 0)}%)"
+        )
+    return "\n".join(lines)
+
+
+async def _start_test_flow(message: Message, state: FSMContext, ctx: AppContext, user_id: int) -> None:
+    ctx.memory.reset(user_id)
+    ctx.sqlite.clear_answers(user_id)
+    ctx.sqlite.set_status(user_id, STATUS_IN_PROGRESS)
+    await state.clear()
+    await message.answer("🚀 Начинаем тест.", reply_markup=_main_menu_keyboard())
+    await _send_current_question(message, ctx, user_id)
+
+
 async def _send_delayed_offer_message(bot: Bot, chat_id: int) -> None:
     await asyncio.sleep(300)
     text = (
@@ -255,24 +311,35 @@ def create_router(ctx: AppContext) -> Router:
         ctx.sqlite.clear_answers(user.id)
         await state.clear()
 
-        kb = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="🚀 Начать тест", callback_data="start_test")]]
+        await message.answer(
+            f"{START_TEXT}\n\n{DURATION_TEXT}\n\n{MOTIVATION_TEXT}",
+            reply_markup=_main_menu_keyboard(),
         )
-        await message.answer(f"{START_TEXT}\n\n{DURATION_TEXT}\n\n{MOTIVATION_TEXT}", reply_markup=kb)
 
     @router.callback_query(F.data == "start_test")
     async def start_test(callback: CallbackQuery, state: FSMContext) -> None:
         user = callback.from_user
-        ctx.memory.reset(user.id)
-        ctx.sqlite.clear_answers(user.id)
-        await state.clear()
         try:
             await callback.answer()
         except Exception:
             pass
         if callback.message:
-            await callback.message.answer("🚀 Начинаем тест.")
-            await _send_current_question(callback.message, ctx, user.id)
+            await _start_test_flow(callback.message, state, ctx, user.id)
+
+    @router.message(F.text == MENU_START_TEST)
+    async def start_test_from_menu(message: Message, state: FSMContext) -> None:
+        user = message.from_user
+        if not user:
+            return
+        await _start_test_flow(message, state, ctx, user.id)
+
+    @router.message(F.text == MENU_MY_RESULTS)
+    async def my_results_from_menu(message: Message) -> None:
+        user = message.from_user
+        if not user:
+            return
+        history = ctx.sqlite.get_recent_results(user.id, limit=5)
+        await message.answer(_build_my_results_text(history), reply_markup=_main_menu_keyboard())
 
     @router.callback_query(F.data.startswith("ans:"))
     async def answer_question(callback: CallbackQuery, state: FSMContext) -> None:
@@ -314,6 +381,32 @@ def create_router(ctx: AppContext) -> Router:
         await state.set_state(ContactForm.name)
         if callback.message:
             await callback.message.answer(f"{CONTACTS_INTRO}\n\n👤 Введите имя:")
+
+    @router.callback_query(F.data == "nav:back")
+    async def nav_back(callback: CallbackQuery) -> None:
+        user = callback.from_user
+        session = ctx.memory.get_or_create(user.id)
+        if session.current_index <= 0:
+            await callback.answer("Это первый вопрос", show_alert=False)
+            return
+        session.current_index -= 1
+        ctx.sqlite.set_status(user.id, STATUS_IN_PROGRESS)
+        await callback.answer("Вернулись на предыдущий вопрос")
+        if callback.message:
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await _send_current_question(callback.message, ctx, user.id)
+
+    @router.callback_query(F.data == "nav:cancel")
+    async def nav_cancel(callback: CallbackQuery, state: FSMContext) -> None:
+        user = callback.from_user
+        ctx.memory.reset(user.id)
+        ctx.sqlite.clear_answers(user.id)
+        ctx.sqlite.set_status(user.id, STATUS_NOT_STARTED)
+        await state.clear()
+        await callback.answer("Тест отменён")
+        if callback.message:
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer("Тест отменён. Выберите действие:", reply_markup=_main_menu_keyboard())
 
     @router.message(ContactForm.name)
     async def contact_name(message: Message, state: FSMContext) -> None:
@@ -469,3 +562,4 @@ async def _finalize_and_show_result(
     await message.answer(text)
     asyncio.create_task(_send_delayed_offer_message(message.bot, user_id))
     await state.clear()
+    await message.answer("Выберите действие:", reply_markup=_main_menu_keyboard())
