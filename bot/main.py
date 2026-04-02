@@ -9,8 +9,8 @@ from aiogram.client.default import DefaultBotProperties
 
 from . import __version__
 from .config import load_settings
+from .assessment import load_runtime_data
 from .flows import AppContext, create_router
-from .scoring import load_data
 from .sheets import GoogleSheetsLogger
 from .storage import InMemoryStore, SQLiteStore
 
@@ -32,7 +32,7 @@ async def main() -> None:
             logging.exception("Google Sheets init failed, continuing without Sheets")
             sheets = None
 
-    data = load_data(settings.data_dir)
+    data = load_runtime_data(settings.data_dir)
     sqlite = SQLiteStore(settings.db_path)
     memory = InMemoryStore()
 

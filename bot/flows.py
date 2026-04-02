@@ -21,7 +21,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from .scoring import evaluate_assessment
+from .assessment import evaluate_runtime_assessment
 from .storage import InMemoryStore, SQLiteStore
 from .texts import CONTACTS_INTRO, DURATION_TEXT, MOTIVATION_TEXT, START_TEXT
 
@@ -515,7 +515,7 @@ async def _finalize_and_show_result(
 
     run_id = str(uuid4())
     history = ctx.sqlite.get_recent_results(user_id, limit=5)
-    assessment = evaluate_assessment(answers, ctx.data, history=history)
+    assessment = evaluate_runtime_assessment(answers, ctx.data, history=history)
     ctx.sqlite.save_result(
         user_id,
         assessment["stage"],
@@ -532,7 +532,7 @@ async def _finalize_and_show_result(
 
     if ctx.sheets:
         answers_sheet_text = _build_answers_sheet_text(ctx.data["questions"], answers)
-        winner_stage = ctx.data["stage_by_name"][assessment["stage"]]
+        winner_stage = ctx.data["stage_by_name"].get(assessment["stage"], {})
         ctx.sheets.append_run_row(
             {
                 "telegram_id": user_id,
@@ -559,10 +559,10 @@ async def _finalize_and_show_result(
                 "idx_a": assessment["indices"]["A"],
                 "idx_e": assessment["indices"]["E"],
                 "idx_i": assessment["indices"]["I"],
-                "stage_description": winner_stage.get("description", ""),
-                "risks": winner_stage.get("risks", []),
-                "do": winner_stage.get("next_actions_base", []),
-                "dont": winner_stage.get("dont", []),
+                "stage_description": winner_stage.get("description", assessment.get("report_json", {}).get("description", "")),
+                "risks": winner_stage.get("risks", assessment.get("report_json", {}).get("abnormal_problems", [])),
+                "do": winner_stage.get("next_actions_base", assessment.get("report_json", {}).get("what_to_do", [])),
+                "dont": winner_stage.get("dont", assessment.get("report_json", {}).get("what_not_to_do", [])),
                 "raw_stage_scores": assessment.get("distances", {}),
                 "booking_prefill_text": booking_prefill,
                 "raw_answers": answers,

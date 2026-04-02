@@ -1,0 +1,422 @@
+config:
+  min_exact_score: 0.60
+  transition_margin: 0.03
+  mixed_margin: 0.03
+  exact_margin: 0.03
+  low_fit_threshold: 0.55
+  exact_confidence_min: 60
+  confidence_floor_for_history: 65
+  history_window: 5
+  contradiction_threshold: 0.58
+  family_exact_threshold: 0.58
+  family_mixed_margin: 0.05
+  family_rules:
+    growth:
+      hard_gates:
+        - {type: cluster_min, cluster: immaturity, value: 0.30}
+        - {type: cluster_max, cluster: aging, value: 0.52}
+    prime:
+      hard_gates:
+        - {type: cluster_min, cluster: execution, value: 0.55}
+        - {type: cluster_min, cluster: administration, value: 0.55}
+        - {type: cluster_min, cluster: entrepreneurship, value: 0.48}
+        - {type: cluster_min, cluster: integration, value: 0.40}
+        - {type: cluster_max, cluster: aging, value: 0.40}
+    aging:
+      hard_gates:
+        - {type: cluster_min, cluster: aging, value: 0.30}
+        - {type: cluster_min, cluster: administration, value: 0.45}
+        - {type: cluster_max, cluster: immaturity, value: 0.55}
+
+stages:
+  - id: "Младенчество"
+    label: "Младенчество"
+    order: 1
+    family: growth
+    hard_gates:
+      - {type: cluster_max, cluster: administration, value: 0.52}
+      - {type: cluster_min, cluster: immaturity, value: 0.48}
+      - {type: trait_max, trait: form_over_function, value: 0.35}
+    soft_signals:
+      chaos: 1.4
+      weak_formalization: 1.4
+      founder_dependency: 1.0
+      founder_centricity: 1.2
+      cash_discipline: -0.8
+    anti_signals:
+      form_over_function: 1.5
+      political_behavior: 1.2
+      initiative_decay: 1.0
+    cluster_ranges:
+      execution: [0.30, 0.62]
+      administration: [0.00, 0.52]
+      entrepreneurship: [0.28, 0.68]
+      integration: [0.00, 0.48]
+      aging: [0.00, 0.28]
+      immaturity: [0.48, 1.00]
+    normal_problems:
+      - "Нехватка регулярного управленческого ритма и опоры на систему."
+      - "Высокая зависимость от ручного координирования и героизма."
+      - "Роли и правила ещё только складываются."
+    abnormal_problems:
+      - "Системные кассовые провалы и срывы обязательств."
+      - "Потеря фокуса на клиентской ценности из-за хаотичных решений."
+    what_to_do:
+      - "Стабилизировать базовое исполнение обязательств перед клиентом."
+      - "Ввести минимальный финансовый и операционный контроль."
+      - "Закрепить владельцев ключевых решений и процессов."
+    what_not_to_do:
+      - "Не масштабировать хаос дополнительными продажами и расходами."
+      - "Не строить бизнес на постоянном подвиге отдельных людей."
+
+  - id: "Давай-давай"
+    label: "Давай-давай"
+    order: 2
+    family: growth
+    hard_gates:
+      - {type: cluster_min, cluster: execution, value: 0.55}
+      - {type: cluster_min, cluster: entrepreneurship, value: 0.45}
+      - {type: cluster_max, cluster: integration, value: 0.60}
+    soft_signals:
+      overextension: 1.4
+      chaos: 1.2
+      opportunity_filtering: -1.0
+      resource_planning: -1.0
+      founder_dependency: 0.7
+    anti_signals:
+      form_over_function: 1.2
+      initiative_decay: 1.0
+      political_behavior: 1.0
+    cluster_ranges:
+      execution: [0.55, 0.90]
+      administration: [0.20, 0.62]
+      entrepreneurship: [0.55, 1.00]
+      integration: [0.15, 0.62]
+      aging: [0.00, 0.25]
+      immaturity: [0.35, 0.92]
+    normal_problems:
+      - "Продажи и инициативы растут быстрее, чем система успевает собраться."
+      - "Команда перегружается, а ограничения мощности учитываются слабо."
+      - "Основатель или центр принятия решений становится узким горлом."
+    abnormal_problems:
+      - "Качество и маржа системно разрушаются из-за переобещаний."
+      - "Организация теряет управляемость при внешнем росте."
+    what_to_do:
+      - "Ограничить непрофильные инициативы и ввести фильтр возможностей."
+      - "Подтянуть ресурсное планирование и план-факт контур."
+      - "Снизить зависимость от единственного центра принятия решений."
+    what_not_to_do:
+      - "Не лечить перегруз только наймом без перестройки управления."
+      - "Не брать всё, что можно продать, без учёта исполнения."
+
+  - id: "Юность"
+    label: "Юность"
+    order: 3
+    family: growth
+    hard_gates:
+      - {type: cluster_min, cluster: administration, value: 0.48}
+      - {type: cluster_min, cluster: entrepreneurship, value: 0.45}
+      - {type: trait_min, trait: role_clarity, value: 0.42}
+      - {type: cluster_range, cluster: integration, min: 0.28, max: 0.62}
+      - {type: cluster_max, cluster: aging, value: 0.32}
+      - {type: trait_max, trait: form_over_function, value: 0.40}
+      - {type: trait_max, trait: initiative_decay, value: 0.45}
+      - {type: trait_max, trait: process_formalization, value: 0.78}
+    soft_signals:
+      role_clarity: 1.3
+      process_formalization: 0.9
+      change_discipline: 1.0
+      founder_dependency: 0.8
+      weak_formalization: 0.8
+      political_behavior: 0.6
+    anti_signals:
+      form_over_function: 1.5
+      initiative_decay: 1.4
+      political_behavior: 1.3
+      market_rigidity: 1.1
+      root_cause_orientation: 1.0
+      process_formalization: 1.0
+      chaos: 1.0
+    cluster_ranges:
+      execution: [0.42, 0.82]
+      administration: [0.48, 0.82]
+      entrepreneurship: [0.45, 0.82]
+      integration: [0.25, 0.65]
+      aging: [0.00, 0.35]
+      immaturity: [0.20, 0.70]
+    normal_problems:
+      - "Компания пересобирает роли, правила и центры полномочий."
+      - "Сопротивление новой дисциплине и стандартам остаётся заметным."
+      - "Старая предпринимательская скорость конфликтует с новой системой."
+    abnormal_problems:
+      - "Параллельные центры власти тормозят изменения."
+      - "Процедуры начинают жить отдельно от результата."
+    what_to_do:
+      - "Формализовать полномочия, зоны ответственности и ритм управления."
+      - "Свести стратегию, KPI и бюджеты в единый контур."
+      - "Подтянуть интеграцию между функциями без потери темпа."
+    what_not_to_do:
+      - "Не умножать комитеты без управленческого эффекта."
+      - "Не возвращаться в ручной режим при первых конфликтах."
+
+  - id: "Ранний Расцвет"
+    label: "Ранний Расцвет"
+    order: 4
+    family: prime
+    hard_gates:
+      - {type: cluster_min, cluster: execution, value: 0.62}
+      - {type: cluster_min, cluster: administration, value: 0.62}
+      - {type: cluster_min, cluster: entrepreneurship, value: 0.60}
+      - {type: cluster_min, cluster: integration, value: 0.52}
+      - {type: cluster_max, cluster: aging, value: 0.28}
+    soft_signals:
+      delivery_stability: 1.1
+      opportunity_filtering: 1.0
+      resource_planning: 1.0
+      scalability_control: 1.0
+      strategic_orientation: 0.9
+      management_rhythm: 0.9
+    anti_signals:
+      chaos: 1.3
+      founder_centricity: 1.2
+      weak_formalization: 1.2
+      political_behavior: 1.2
+      initiative_decay: 1.2
+      form_over_function: 1.0
+      cross_function_flow: 1.0
+      root_cause_orientation: 1.0
+    cluster_ranges:
+      execution: [0.60, 0.92]
+      administration: [0.58, 0.88]
+      entrepreneurship: [0.55, 0.88]
+      integration: [0.45, 0.72]
+      aging: [0.00, 0.30]
+      immaturity: [0.10, 0.45]
+    normal_problems:
+      - "Сильные P/A/E уже есть, но интеграция ещё не полностью зрелая."
+      - "Механизмы сквозной координации ещё неравномерны между подразделениями."
+      - "Нужна тонкая доводка баланса скорости и согласованности."
+    abnormal_problems:
+      - "Локальная оптимизация начинает подменять общий результат."
+      - "Сильные функции не складываются в устойчивую коллективную дисциплину."
+    what_to_do:
+      - "Укреплять сквозные механизмы интеграции между функциями."
+      - "Развивать второй управленческий контур и общие метрики."
+      - "Сохранять предпринимательский контур без отката в хаос."
+    what_not_to_do:
+      - "Не считать достигнутый баланс окончательным."
+      - "Не подменять интеграцию формальными согласованиями."
+
+  - id: "Расцвет"
+    label: "Расцвет"
+    order: 5
+    family: prime
+    hard_gates:
+      - {type: cluster_min, cluster: execution, value: 0.65}
+      - {type: cluster_min, cluster: administration, value: 0.62}
+      - {type: cluster_min, cluster: entrepreneurship, value: 0.60}
+      - {type: cluster_min, cluster: integration, value: 0.50}
+      - {type: cluster_max, cluster: aging, value: 0.35}
+    soft_signals:
+      delivery_stability: 1.0
+      process_formalization: 0.9
+      experimentation_system: 1.0
+      conflict_constructiveness: 1.0
+      root_cause_orientation: 0.9
+    anti_signals:
+      form_over_function: 1.3
+      political_behavior: 1.2
+      initiative_decay: 1.2
+      blame_culture: 1.0
+    cluster_ranges:
+      execution: [0.65, 1.00]
+      administration: [0.62, 0.95]
+      entrepreneurship: [0.60, 0.95]
+      integration: [0.60, 0.95]
+      aging: [0.00, 0.35]
+      immaturity: [0.00, 0.30]
+    normal_problems:
+      - "Основная задача — удерживать баланс между контролем и обновлением."
+      - "С ростом появляется риск потери чувствительности к рынку."
+      - "Нужно постоянно калибровать P/A/E/I на уровне всей системы."
+    abnormal_problems:
+      - "Предпринимательская энергия начинает гаснуть при внешнем порядке."
+      - "Сильная администрация начинает поджимать развитие."
+    what_to_do:
+      - "Поддерживать одновременно эффективность, обновление и интеграцию."
+      - "Регулярно обновлять стратегический контур и экспериментальную повестку."
+      - "Сохранять культуру совместного решения и ответственности."
+    what_not_to_do:
+      - "Не усиливать контроль до блокировки развития."
+      - "Не экономить на развитии людей, продукта и управленческой энергии."
+
+  - id: "Стабильность"
+    label: "Стабильность"
+    order: 6
+    family: aging
+    hard_gates:
+      - {type: cluster_min, cluster: administration, value: 0.58}
+      - {type: cluster_min, cluster: execution, value: 0.55}
+      - {type: cluster_min, cluster: integration, value: 0.44}
+      - {type: cluster_max, cluster: entrepreneurship, value: 0.56}
+      - {type: cluster_min, cluster: aging, value: 0.26}
+      - {type: cluster_max, cluster: immaturity, value: 0.35}
+    soft_signals:
+      initiative_decay: 1.3
+      risk_tolerance: -1.1
+      decision_speed: -1.0
+      form_over_function: 1.0
+      management_rhythm: 0.9
+      process_formalization: 0.8
+    anti_signals:
+      chaos: 1.4
+      weak_formalization: 1.3
+      founder_dependency: 1.2
+      overextension: 1.1
+      founder_centricity: 1.1
+      role_clarity: -1.0
+    cluster_ranges:
+      execution: [0.52, 0.92]
+      administration: [0.56, 0.95]
+      entrepreneurship: [0.22, 0.62]
+      integration: [0.45, 0.90]
+      aging: [0.26, 0.64]
+      immaturity: [0.00, 0.35]
+    normal_problems:
+      - "Система управляется хорошо, но энергия обновления снижается."
+      - "Растёт осторожность и цикл стратегических решений."
+      - "Организация начинает больше удерживать, чем создавать."
+    abnormal_problems:
+      - "Падение E становится устойчивым и начинает душить развитие."
+      - "Отчётность и согласования отрываются от результата."
+    what_to_do:
+      - "Вернуть обновление и рост в регулярный управленческий цикл."
+      - "Сократить путь от идеи до решения по стратегическим инициативам."
+      - "Проверить, где система стала защищать себя вместо бизнеса."
+    what_not_to_do:
+      - "Не превращать стабильность в самоцель."
+      - "Не душить риск и инициативу из страха ошибки."
+
+  - id: "Аристократизм"
+    label: "Аристократизм"
+    order: 7
+    family: aging
+    hard_gates:
+      - {type: cluster_min, cluster: administration, value: 0.62}
+      - {type: cluster_min, cluster: aging, value: 0.48}
+      - {type: trait_min, trait: form_over_function, value: 0.45}
+      - {type: cluster_max, cluster: entrepreneurship, value: 0.45}
+    soft_signals:
+      form_over_function: 1.5
+      political_behavior: 1.2
+      market_rigidity: 1.0
+      initiative_decay: 1.0
+    anti_signals:
+      chaos: 1.0
+      weak_formalization: 1.0
+      overextension: 0.8
+      experimentation_system: 0.9
+    cluster_ranges:
+      execution: [0.35, 0.72]
+      administration: [0.62, 1.00]
+      entrepreneurship: [0.00, 0.45]
+      integration: [0.40, 0.82]
+      aging: [0.48, 0.88]
+      immaturity: [0.00, 0.20]
+    normal_problems:
+      - "Форма начинает устойчиво доминировать над функцией."
+      - "Скорость решений падает, возрастает церемониальность и политизация."
+      - "Клиентская ценность всё чаще уступает внутреннему порядку."
+    abnormal_problems:
+      - "Политика подменяет реальную ответственность за результат."
+      - "Сигналы рынка игнорируются до заметной потери позиции."
+    what_to_do:
+      - "Вернуть фокус на клиентский результат и скорость полезных решений."
+      - "Срезать лишние уровни согласования и штабную инерцию."
+      - "Перезапустить ответственность за сквозной результат."
+    what_not_to_do:
+      - "Не маскировать ослабление бизнеса внешним порядком и презентациями."
+      - "Не усиливать форму там, где уже потеряна функция."
+
+  - id: "Ранний бюрократизм"
+    label: "Ранний бюрократизм"
+    order: 8
+    family: aging
+    hard_gates:
+      - {type: cluster_min, cluster: aging, value: 0.58}
+      - {type: cluster_max, cluster: execution, value: 0.55}
+      - {type: cluster_max, cluster: entrepreneurship, value: 0.35}
+    soft_signals:
+      political_behavior: 1.4
+      blame_culture: 1.2
+      form_over_function: 1.2
+      decision_speed: -1.0
+      root_cause_orientation: -1.1
+    anti_signals:
+      experimentation_system: 1.0
+      delivery_stability: 0.8
+      commitment_alignment: 0.8
+      market_focus: 0.9
+      customer_retention: 0.7
+    cluster_ranges:
+      execution: [0.10, 0.55]
+      administration: [0.55, 1.00]
+      entrepreneurship: [0.00, 0.35]
+      integration: [0.15, 0.58]
+      aging: [0.58, 1.00]
+      immaturity: [0.00, 0.18]
+    normal_problems:
+      - "Система начинает работать на себя, а не на клиента и результат."
+      - "Решения затягиваются, координация между функциями ухудшается."
+      - "Внутренние конфликты всё чаще решаются политически."
+    abnormal_problems:
+      - "Поиск виновных системно замещает исправление причин."
+      - "Клиентские потоки распадаются на ведомственные куски."
+    what_to_do:
+      - "Пересобрать критические клиентские потоки и убрать лишний регламент."
+      - "Вернуть персональную ответственность за результат."
+      - "Снизить политизацию управленческих решений."
+    what_not_to_do:
+      - "Не отвечать на паралич созданием новых комитетов."
+      - "Не путать формальную дисциплину с эффективностью."
+
+  - id: "Бюрократия"
+    label: "Бюрократия"
+    order: 9
+    family: aging
+    hard_gates:
+      - {type: cluster_min, cluster: aging, value: 0.72}
+      - {type: cluster_max, cluster: execution, value: 0.35}
+      - {type: cluster_max, cluster: entrepreneurship, value: 0.22}
+      - {type: cluster_max, cluster: integration, value: 0.35}
+    soft_signals:
+      form_over_function: 1.5
+      political_behavior: 1.3
+      blame_culture: 1.2
+      initiative_decay: 1.2
+      root_cause_orientation: -1.2
+    anti_signals:
+      experimentation_system: 1.2
+      market_focus: 1.0
+      conflict_constructiveness: 1.0
+    cluster_ranges:
+      execution: [0.00, 0.35]
+      administration: [0.55, 1.00]
+      entrepreneurship: [0.00, 0.22]
+      integration: [0.00, 0.35]
+      aging: [0.72, 1.00]
+      immaturity: [0.00, 0.15]
+    normal_problems:
+      - "Формальная управляемость существует без жизнеспособного результата."
+      - "Система почти не обновляется и плохо слышит рынок."
+      - "Координация и решения деградируют до процедурного паралича."
+    abnormal_problems:
+      - "Организация теряет способность к внутренним изменениям."
+      - "Клиентская ценность системно разрушается при сохранении формы."
+    what_to_do:
+      - "Сфокусироваться на жизнеспособном ядре и радикально упростить контур."
+      - "Вернуть базовую ответственность за клиента и результат."
+      - "Запускать антикризисные решения как программу выживания, а не косметики."
+    what_not_to_do:
+      - "Не пытаться сохранить весь текущий контур любой ценой."
+      - "Не откладывать тяжёлые, но необходимые решения."

@@ -1,0 +1,648 @@
+questions:
+  - id: P1
+    text: "Насколько стабильно вы выполняете обещания клиентам (срок/качество/объём) без «пожаров»?"
+    dimension: P
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Почти всегда: отклонения редки и быстро устраняются системно."
+        paei: {P: 3.0}
+        traits: {delivery_stability: 2.0, execution_reliability: 1.8}
+        stage_signals: {prime_signal: 0.8, infancy_signal: -0.8, bureaucracy_signal: -0.5}
+      B:
+        text: "В целом выполняем, но периодически «дожимаем» вручную."
+        paei: {P: 2.0}
+        traits: {delivery_stability: 1.2, chaos: 0.3}
+        stage_signals: {early_prime_signal: 0.3, gogo_signal: 0.2}
+      C:
+        text: "Срывы/переделки случаются регулярно, многое держится на героизме."
+        paei: {P: 1.0}
+        traits: {delivery_stability: 0.5, chaos: 1.0, weak_formalization: 0.8}
+        stage_signals: {infancy_signal: 0.8, gogo_signal: 0.5, prime_signal: -0.7}
+      D:
+        text: "Нестабильно: сроки/качество часто плавают, клиент это чувствует."
+        paei: {P: 0.0}
+        traits: {delivery_stability: 0.0, chaos: 1.5, weak_formalization: 1.0}
+        stage_signals: {infancy_signal: 1.1, bureaucracy_signal: 0.2, prime_signal: -1.0}
+
+  - id: P2
+    text: "Когда продажи/объём растут, что происходит с качеством выполнения и удовлетворённостью клиентов?"
+    dimension: P
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Рост не ломает качество: ограничения мощности видны и управляются заранее."
+        paei: {P: 3.0, A: 0.5}
+        traits: {scalability_control: 2.0, resource_planning: 1.0}
+        stage_signals: {prime_signal: 0.7, gogo_signal: -0.8}
+      B:
+        text: "Иногда качество проседает, но быстро выравниваем и закрепляем улучшения."
+        paei: {P: 2.0, A: 0.3}
+        traits: {scalability_control: 1.2}
+        stage_signals: {early_prime_signal: 0.4, gogo_signal: 0.1}
+      C:
+        text: "Часто продаём больше, чем можем качественно выполнить."
+        paei: {P: 1.0}
+        traits: {scalability_control: 0.4, overextension: 1.2}
+        stage_signals: {gogo_signal: 0.9, infancy_signal: 0.3, prime_signal: -0.6}
+      D:
+        text: "Качество вторично: главное — объём/скорость, последствия разгребаем потом."
+        paei: {P: 0.0}
+        traits: {overextension: 1.6, chaos: 0.8}
+        stage_signals: {gogo_signal: 1.1, prime_signal: -0.9}
+
+  - id: P3
+    text: "Насколько повторные покупки/продления подтверждают, что вы удовлетворяете потребность клиента?"
+    dimension: P
+    weight: 1.2
+    required: true
+    options:
+      A:
+        text: "Повторные покупки/продления — норма, удержание стабильно подтверждает ценность."
+        paei: {P: 3.0}
+        traits: {customer_retention: 2.0, market_focus: 1.2}
+        stage_signals: {prime_signal: 0.8, aristocracy_signal: -0.6}
+      B:
+        text: "Повторные покупки есть, но заметно зависят от людей/периодов."
+        paei: {P: 2.0}
+        traits: {customer_retention: 1.1, founder_dependency: 0.4}
+        stage_signals: {early_prime_signal: 0.3, gogo_signal: 0.2}
+      C:
+        text: "Повторные покупки нерегулярны: каждый раз как «продаём заново»."
+        paei: {P: 1.0}
+        traits: {customer_retention: 0.5, chaos: 0.7}
+        stage_signals: {infancy_signal: 0.6, gogo_signal: 0.4, aristocracy_signal: 0.2}
+      D:
+        text: "Повторных покупок почти нет (или держатся на скидках/разовых усилиях)."
+        paei: {P: 0.0}
+        traits: {customer_retention: 0.0, market_focus: 0.2}
+        stage_signals: {bureaucracy_signal: 0.8, aristocracy_signal: 0.5, prime_signal: -1.0}
+
+  - id: P4
+    text: "Насколько устойчив денежный поток от основной деятельности (без «качелей» и кассовых разрывов)?"
+    dimension: P
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Устойчив: поступления предсказуемы, кассовые провалы редки."
+        paei: {P: 2.5, A: 0.5}
+        traits: {cash_discipline: 2.0, financial_control: 1.0}
+        stage_signals: {prime_signal: 0.6, infancy_signal: -0.9}
+      B:
+        text: "Скорее устойчив, но есть заметная сезонность/проектные провалы."
+        paei: {P: 2.0}
+        traits: {cash_discipline: 1.2}
+        stage_signals: {early_prime_signal: 0.2, gogo_signal: 0.1}
+      C:
+        text: "Нестабилен: «то густо, то пусто», часто живём от поступления к поступлению."
+        paei: {P: 1.0}
+        traits: {cash_discipline: 0.5, chaos: 0.8}
+        stage_signals: {infancy_signal: 0.7, gogo_signal: 0.4}
+      D:
+        text: "Регулярные кассовые разрывы/непредвиденные провалы, выживание на первом месте."
+        paei: {P: 0.0}
+        traits: {cash_discipline: 0.0, chaos: 1.4, founder_centricity: 0.5}
+        stage_signals: {infancy_signal: 1.1, bureaucracy_signal: 0.2, prime_signal: -1.0}
+
+  - id: P5
+    text: "Что чаще воспринимается как «главный критерий успеха» внутри компании?"
+    dimension: P
+    weight: 1.5
+    required: true
+    options:
+      A:
+        text: "Соблюдение процедур/регламентов и правильность оформления важнее результата."
+        paei: {P: 0.0, A: 0.8}
+        traits: {form_over_function: 2.0, result_focus: 0.0}
+        stage_signals: {aristocracy_signal: 1.0, bureaucracy_signal: 0.8, prime_signal: -1.0}
+      B:
+        text: "Процедуры и результат важны, но часто выигрывает форма и «как сделано»."
+        paei: {P: 1.0, A: 1.2}
+        traits: {form_over_function: 1.3, result_focus: 0.7}
+        stage_signals: {stability_signal: 0.5, aristocracy_signal: 0.6}
+      C:
+        text: "Баланс: и процедура, и результат значимы; результат часто важнее формальностей."
+        paei: {P: 2.0, A: 1.3}
+        traits: {form_over_function: 0.4, result_focus: 1.4}
+        stage_signals: {early_prime_signal: 0.5, prime_signal: 0.3}
+      D:
+        text: "В первую очередь оценивают по результату и ценности для клиента."
+        paei: {P: 3.0}
+        traits: {result_focus: 2.0, market_focus: 1.0}
+        stage_signals: {prime_signal: 0.7, aristocracy_signal: -0.8}
+
+  - id: P6
+    text: "О чём чаще всего спорит топ-команда?"
+    dimension: P
+    weight: 1.2
+    required: true
+    options:
+      A:
+        text: "Про статус, влияние, «кто главнее», внутренние границы и правила игры."
+        paei: {P: 0.0, I: 0.0}
+        traits: {political_behavior: 1.8, market_focus: 0.0}
+        stage_signals: {aristocracy_signal: 0.9, early_bureaucracy_signal: 0.9, prime_signal: -0.8}
+      B:
+        text: "Про согласования/регламенты/«кто должен», часто без привязки к рынку."
+        paei: {P: 1.0, A: 0.8}
+        traits: {form_over_function: 1.0, political_behavior: 0.9}
+        stage_signals: {stability_signal: 0.5, aristocracy_signal: 0.5}
+      C:
+        text: "И про рынок/клиента, и про внутренние правила — примерно поровну."
+        paei: {P: 2.0, A: 0.8}
+        traits: {market_focus: 1.0, role_clarity: 0.5}
+        stage_signals: {youth_signal: 0.4, early_prime_signal: 0.2}
+      D:
+        text: "Про клиента, продукт, рынок и результаты (выручка/прибыль/качество)."
+        paei: {P: 3.0}
+        traits: {market_focus: 1.8, result_focus: 1.4}
+        stage_signals: {prime_signal: 0.8, infancy_signal: 0.3}
+
+  - id: A1
+    text: "Насколько выстроены бухгалтерский/управленческий учёт и регулярный контроль денег (прибыль, издержки, дебиторка)?"
+    dimension: A
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Системно и регулярно: цифры доступны вовремя и реально управляют решениями."
+        paei: {A: 3.0}
+        traits: {financial_control: 2.0, management_rhythm: 1.2}
+        stage_signals: {prime_signal: 0.7, gogo_signal: -0.8}
+      B:
+        text: "В целом есть, но отдельные зоны ещё нестабильны/запаздывают."
+        paei: {A: 2.0}
+        traits: {financial_control: 1.2}
+        stage_signals: {youth_signal: 0.4, stability_signal: 0.2}
+      C:
+        text: "Эпизодически: цифры неполные/поздние, решения часто принимаются вслепую."
+        paei: {A: 1.0}
+        traits: {financial_control: 0.5, weak_formalization: 0.8}
+        stage_signals: {infancy_signal: 0.7, gogo_signal: 0.5}
+      D:
+        text: "Системного контроля почти нет: реагируем постфактум."
+        paei: {A: 0.0}
+        traits: {financial_control: 0.0, weak_formalization: 1.4, chaos: 0.8}
+        stage_signals: {infancy_signal: 1.0, gogo_signal: 0.4, prime_signal: -0.8}
+
+  - id: A2
+    text: "Насколько решения превращаются в устойчивые правила/стандарты и реально соблюдаются?"
+    dimension: A
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Быстро оформляем и соблюдаем: договорённости закрепляются и работают."
+        paei: {A: 3.0}
+        traits: {process_formalization: 2.0, role_clarity: 0.8}
+        stage_signals: {prime_signal: 0.7, youth_signal: 0.4}
+      B:
+        text: "Часть закрепляется, часть остаётся на уровне устных договорённостей."
+        paei: {A: 2.0}
+        traits: {process_formalization: 1.2}
+        stage_signals: {youth_signal: 0.5, gogo_signal: 0.2}
+      C:
+        text: "Правила есть, но их часто нарушают (особенно ключевые люди)."
+        paei: {A: 1.0}
+        traits: {process_formalization: 0.5, founder_dependency: 0.6}
+        stage_signals: {youth_signal: 0.3, gogo_signal: 0.4}
+      D:
+        text: "Правил/стандартов почти нет: каждый раз решаем заново."
+        paei: {A: 0.0}
+        traits: {weak_formalization: 1.5, chaos: 1.0}
+        stage_signals: {infancy_signal: 0.9, gogo_signal: 0.5, bureaucracy_signal: -0.4}
+
+  - id: A3
+    text: "Есть ли регулярный управленческий ритм (план-факт, бюджеты, разбор отклонений, корректировки)?"
+    dimension: A
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Да: регулярный цикл и дисциплина исполнения, отклонения разруливаются по правилам."
+        paei: {A: 3.0}
+        traits: {management_rhythm: 2.0, root_cause_orientation: 0.8}
+        stage_signals: {prime_signal: 0.7, stability_signal: 0.4}
+      B:
+        text: "Частично: цикл есть, но дисциплина и качество разбора нестабильны."
+        paei: {A: 2.0}
+        traits: {management_rhythm: 1.2}
+        stage_signals: {youth_signal: 0.4, early_prime_signal: 0.2}
+      C:
+        text: "Нерегулярно: план-факт бывает, но редко приводит к корректирующим действиям."
+        paei: {A: 1.0}
+        traits: {management_rhythm: 0.5, weak_formalization: 0.7}
+        stage_signals: {gogo_signal: 0.4, infancy_signal: 0.5}
+      D:
+        text: "Почти нет: управление реактивное, «разгребаем» по мере поступления проблем."
+        paei: {A: 0.0}
+        traits: {management_rhythm: 0.0, chaos: 1.2, weak_formalization: 1.0}
+        stage_signals: {infancy_signal: 0.9, gogo_signal: 0.5, prime_signal: -0.8}
+
+  - id: A4
+    text: "Как компания планирует ресурсы (люди/мощность/деньги) перед ростом продаж или запуском инициатив?"
+    dimension: A
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Планируем ресурсно: считаем мощность/деньги, ограничиваем обещания и выбираем приоритеты."
+        paei: {A: 3.0, P: 0.3}
+        traits: {resource_planning: 2.0, scalability_control: 1.0}
+        stage_signals: {prime_signal: 0.6, gogo_signal: -0.8}
+      B:
+        text: "Планируем частично: ключевые риски видим, но просчёты случаются."
+        paei: {A: 2.0}
+        traits: {resource_planning: 1.2}
+        stage_signals: {youth_signal: 0.4, early_prime_signal: 0.2}
+      C:
+        text: "Чаще «догоняем» ресурсами уже после продаж, перегружаем команду."
+        paei: {A: 1.0}
+        traits: {resource_planning: 0.5, overextension: 1.1}
+        stage_signals: {gogo_signal: 0.9, infancy_signal: 0.3}
+      D:
+        text: "Ресурс почти не считают: «берём всё», а потом тушим последствия."
+        paei: {A: 0.0}
+        traits: {resource_planning: 0.0, overextension: 1.6, chaos: 0.7}
+        stage_signals: {gogo_signal: 1.1, infancy_signal: 0.4, prime_signal: -0.8}
+
+  - id: A5
+    text: "Насколько роли/зоны ответственности формализованы и понятны (кто за что отвечает и чем измеряется)?"
+    dimension: A
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Чётко: ответственность закреплена, пересечений минимум, измерения понятны."
+        paei: {A: 3.0, I: 0.4}
+        traits: {role_clarity: 2.0, commitment_alignment: 0.8}
+        stage_signals: {prime_signal: 0.7, youth_signal: 0.5}
+      B:
+        text: "В целом понятно, но есть «серые зоны» и пересечения."
+        paei: {A: 2.0}
+        traits: {role_clarity: 1.2}
+        stage_signals: {youth_signal: 0.4, early_prime_signal: 0.3}
+      C:
+        text: "Размыто: многое решается «по звонку», ответственность плавает."
+        paei: {A: 1.0}
+        traits: {role_clarity: 0.5, founder_dependency: 0.8, weak_formalization: 0.6}
+        stage_signals: {infancy_signal: 0.7, gogo_signal: 0.4}
+      D:
+        text: "Почти не определено: люди делают всё подряд, границы ролей отсутствуют."
+        paei: {A: 0.0}
+        traits: {role_clarity: 0.0, weak_formalization: 1.5, chaos: 0.7}
+        stage_signals: {infancy_signal: 1.0, gogo_signal: 0.4, prime_signal: -0.9}
+
+  - id: A6
+    text: "Как обычно проходят изменения в процессах/правилах?"
+    dimension: A
+    weight: 1.1
+    required: true
+    options:
+      A:
+        text: "Через понятный порядок: пилот -> фиксация стандарта -> обучение -> контроль соблюдения."
+        paei: {A: 3.0}
+        traits: {change_discipline: 2.0, process_formalization: 1.0}
+        stage_signals: {prime_signal: 0.6, youth_signal: 0.4}
+      B:
+        text: "Есть порядок, но часто сокращаем шаги из-за срочности."
+        paei: {A: 2.0}
+        traits: {change_discipline: 1.2}
+        stage_signals: {youth_signal: 0.4, gogo_signal: 0.2}
+      C:
+        text: "Меняем ситуативно, стандарты не успевают закрепляться."
+        paei: {A: 1.0}
+        traits: {change_discipline: 0.5, weak_formalization: 0.8}
+        stage_signals: {gogo_signal: 0.5, infancy_signal: 0.4}
+      D:
+        text: "Хаотично: каждый меняет «как удобно», единых правил нет."
+        paei: {A: 0.0}
+        traits: {change_discipline: 0.0, weak_formalization: 1.4, chaos: 0.8}
+        stage_signals: {infancy_signal: 0.9, gogo_signal: 0.4, prime_signal: -0.8}
+
+  - id: E1
+    text: "Насколько регулярно руководство обсуждает будущее (возможности/угрозы/куда идём) и принимает решения на этой основе?"
+    dimension: E
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Постоянно: стратегический контур живой, решения регулярно корректируются под внешнюю среду."
+        paei: {E: 3.0}
+        traits: {strategic_orientation: 2.0, proactive_innovation: 0.8}
+        stage_signals: {prime_signal: 0.8, stability_signal: -0.7}
+      B:
+        text: "Регулярно, но иногда «смывает» операционкой на недели/месяцы."
+        paei: {E: 2.0}
+        traits: {strategic_orientation: 1.2}
+        stage_signals: {early_prime_signal: 0.4, youth_signal: 0.2}
+      C:
+        text: "Редко: обсуждаем эпизодически, в основном живём текущим."
+        paei: {E: 1.0}
+        traits: {strategic_orientation: 0.5, initiative_decay: 0.7}
+        stage_signals: {stability_signal: 0.6, aristocracy_signal: 0.3}
+      D:
+        text: "Почти никогда: изменения воспринимаются как риск/помеха."
+        paei: {E: 0.0}
+        traits: {strategic_orientation: 0.0, initiative_decay: 1.4, market_rigidity: 1.0}
+        stage_signals: {aristocracy_signal: 0.8, bureaucracy_signal: 0.8, prime_signal: -1.0}
+
+  - id: E2
+    text: "Как компания относится к возможностям рынка: умеет ли отказываться от «соблазнов», не подходящих стратегии/марже?"
+    dimension: E
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Умеем говорить «нет»: есть критерии, когда/почему отказаться от возможности."
+        paei: {E: 3.0, A: 0.4}
+        traits: {opportunity_filtering: 2.0, strategic_orientation: 0.8}
+        stage_signals: {prime_signal: 0.8, gogo_signal: -0.9}
+      B:
+        text: "Частично: критерии есть, но иногда всё равно «впрыгиваем»."
+        paei: {E: 2.0}
+        traits: {opportunity_filtering: 1.1}
+        stage_signals: {early_prime_signal: 0.3, gogo_signal: 0.2}
+      C:
+        text: "Часто хватаемся за многое, фокус расплывается."
+        paei: {E: 1.0}
+        traits: {opportunity_filtering: 0.4, overextension: 1.1}
+        stage_signals: {gogo_signal: 1.0, youth_signal: 0.2}
+      D:
+        text: "Берём почти всё, что можно продать — без фильтра."
+        paei: {E: 0.0}
+        traits: {opportunity_filtering: 0.0, overextension: 1.6}
+        stage_signals: {gogo_signal: 1.2, prime_signal: -0.8}
+
+  - id: E3
+    text: "Насколько компания создаёт возможности сама (новые продукты/каналы/технологии), а не только реагирует на внешние?"
+    dimension: E
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Проактивно создаём: есть поток экспериментов и выводов, не завязанный на одного человека."
+        paei: {E: 3.0}
+        traits: {proactive_innovation: 2.0, experimentation_system: 1.0}
+        stage_signals: {prime_signal: 0.9, stability_signal: -0.8}
+      B:
+        text: "Создаём периодически, но инициативы часто завязаны на отдельных лидеров."
+        paei: {E: 2.0}
+        traits: {proactive_innovation: 1.2, founder_dependency: 0.4}
+        stage_signals: {early_prime_signal: 0.4, youth_signal: 0.2}
+      C:
+        text: "Редко создаём: в основном реагируем, часто с опозданием."
+        paei: {E: 1.0}
+        traits: {proactive_innovation: 0.5, initiative_decay: 0.8}
+        stage_signals: {stability_signal: 0.6, aristocracy_signal: 0.4}
+      D:
+        text: "Почти не создаём: важнее сохранить статус-кво."
+        paei: {E: 0.0}
+        traits: {proactive_innovation: 0.0, initiative_decay: 1.5, market_rigidity: 1.0}
+        stage_signals: {aristocracy_signal: 0.8, bureaucracy_signal: 0.7, prime_signal: -1.0}
+
+  - id: E4
+    text: "Как в компании устроены инновации и эксперименты?"
+    dimension: E
+    weight: 1.5
+    required: true
+    options:
+      A:
+        text: "Есть «машинка экспериментов»: гипотезы, быстрые проверки, решения о масштабировании/закрытии."
+        paei: {E: 3.0}
+        traits: {experimentation_system: 2.0, decision_speed: 0.8}
+        stage_signals: {prime_signal: 1.0, bureaucracy_signal: -0.9}
+      B:
+        text: "Эксперименты бывают, но без устойчивого процесса и метрик."
+        paei: {E: 2.0}
+        traits: {experimentation_system: 1.1}
+        stage_signals: {early_prime_signal: 0.4, youth_signal: 0.2}
+      C:
+        text: "Эксперименты редки и случайны, инициативы быстро затухают."
+        paei: {E: 1.0}
+        traits: {experimentation_system: 0.4, initiative_decay: 1.0}
+        stage_signals: {stability_signal: 0.6, aristocracy_signal: 0.3}
+      D:
+        text: "Эксперименты не приветствуются: «у нас так не принято»."
+        paei: {E: 0.0}
+        traits: {experimentation_system: 0.0, initiative_decay: 1.6, market_rigidity: 1.0}
+        stage_signals: {aristocracy_signal: 0.7, bureaucracy_signal: 0.9, prime_signal: -1.1}
+
+  - id: E5
+    text: "Как организация относится к риску (новые решения, изменения, инвестиции в будущее)?"
+    dimension: E
+    weight: 1.2
+    required: true
+    options:
+      A:
+        text: "Готовы брать управляемый риск ради будущего и понимаем, что иначе начнём стареть."
+        paei: {E: 3.0}
+        traits: {risk_tolerance: 2.0}
+        stage_signals: {prime_signal: 0.8, stability_signal: -0.7}
+      B:
+        text: "Риск берём дозированно, стараемся держать баланс."
+        paei: {E: 2.0}
+        traits: {risk_tolerance: 1.2}
+        stage_signals: {early_prime_signal: 0.3, stability_signal: 0.1}
+      C:
+        text: "Скорее избегаем риска: важнее не ошибиться и сохранить стабильность."
+        paei: {E: 1.0}
+        traits: {risk_tolerance: 0.5, initiative_decay: 0.7}
+        stage_signals: {stability_signal: 0.7, aristocracy_signal: 0.3}
+      D:
+        text: "Избегаем риска любой ценой, инициативы гаснут на согласованиях."
+        paei: {E: 0.0}
+        traits: {risk_tolerance: 0.0, initiative_decay: 1.4, market_rigidity: 0.8}
+        stage_signals: {aristocracy_signal: 0.7, bureaucracy_signal: 0.6, prime_signal: -0.9}
+
+  - id: E6
+    text: "Насколько быстро организация принимает решения об изменениях (от идеи до решения) без потери качества?"
+    dimension: E
+    weight: 1.2
+    required: true
+    options:
+      A:
+        text: "Достаточно быстро: быстро уточняем и принимаем решение, сохраняя качество анализа."
+        paei: {E: 3.0, A: 0.4}
+        traits: {decision_speed: 2.0, strategic_orientation: 0.5}
+        stage_signals: {prime_signal: 0.7, bureaucracy_signal: -0.8}
+      B:
+        text: "Скорость средняя: решения иногда затягиваются из-за согласований."
+        paei: {E: 2.0}
+        traits: {decision_speed: 1.1}
+        stage_signals: {stability_signal: 0.3, early_prime_signal: 0.2}
+      C:
+        text: "Медленно: идеи тонут в страхе ошибиться/внутренних барьерах."
+        paei: {E: 1.0}
+        traits: {decision_speed: 0.4, initiative_decay: 0.8, political_behavior: 0.4}
+        stage_signals: {stability_signal: 0.6, aristocracy_signal: 0.5}
+      D:
+        text: "Практически невозможно: система сопротивляется любым изменениям."
+        paei: {E: 0.0}
+        traits: {decision_speed: 0.0, initiative_decay: 1.5, market_rigidity: 1.0}
+        stage_signals: {bureaucracy_signal: 0.9, aristocracy_signal: 0.6, prime_signal: -1.0}
+
+  - id: I1
+    text: "Как в компании решаются конфликты между функциями (продажи/производство/финансы и т.д.)?"
+    dimension: I
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Конструктивно: есть доверие и уважение, спор ведёт к лучшему решению."
+        paei: {I: 3.0}
+        traits: {conflict_constructiveness: 2.0, commitment_alignment: 0.8}
+        stage_signals: {prime_signal: 0.8, youth_signal: 0.4}
+      B:
+        text: "Иногда конструктивно, но бывает уход в эмоции/личное."
+        paei: {I: 2.0}
+        traits: {conflict_constructiveness: 1.2}
+        stage_signals: {early_prime_signal: 0.3, youth_signal: 0.2}
+      C:
+        text: "Часто деструктивно: каждый защищает своё, растёт внутренняя борьба."
+        paei: {I: 1.0}
+        traits: {conflict_constructiveness: 0.4, political_behavior: 0.8}
+        stage_signals: {youth_signal: 0.5, early_bureaucracy_signal: 0.4}
+      D:
+        text: "Преобладает поиск виновных/козлов отпущения, атмосфера подозрительности."
+        paei: {I: 0.0}
+        traits: {conflict_constructiveness: 0.0, blame_culture: 1.4, political_behavior: 1.0}
+        stage_signals: {early_bureaucracy_signal: 0.8, bureaucracy_signal: 0.6, prime_signal: -0.9}
+
+  - id: I2
+    text: "Насколько управление и взаимодействие завязаны на «склеивающего человека» (основатель/ключевой лидер)?"
+    dimension: I
+    weight: 1.5
+    required: true
+    options:
+      A:
+        text: "Сильно: без него решения/взаимодействия стопорятся или разваливаются."
+        paei: {I: 0.0}
+        traits: {founder_dependency: 2.0, founder_centricity: 1.5}
+        stage_signals: {infancy_signal: 0.9, gogo_signal: 0.8, prime_signal: -1.0}
+      B:
+        text: "Заметно, но часть взаимодействий уже держится на ролях/процессах."
+        paei: {I: 1.0}
+        traits: {founder_dependency: 1.2, founder_centricity: 0.8}
+        stage_signals: {gogo_signal: 0.6, youth_signal: 0.5}
+      C:
+        text: "Небольшая зависимость: система работает через роли и правила."
+        paei: {I: 2.0}
+        traits: {founder_dependency: 0.5, role_clarity: 0.8}
+        stage_signals: {youth_signal: 0.5, early_prime_signal: 0.4}
+      D:
+        text: "Почти нет: организация интегрирована, решения устойчивы без конкретной личности."
+        paei: {I: 3.0}
+        traits: {founder_dependency: 0.0, commitment_alignment: 1.0, cross_function_flow: 0.8}
+        stage_signals: {prime_signal: 0.8, infancy_signal: -0.8}
+
+  - id: I3
+    text: "Насколько решения принимаются совместно и затем исполняются без саботажа и «разборок»?"
+    dimension: I
+    weight: 1.3
+    required: true
+    options:
+      A:
+        text: "Есть совместная выработка решения и дисциплина исполнения (решили — делаем)."
+        paei: {I: 3.0}
+        traits: {commitment_alignment: 2.0, meeting_effectiveness: 0.8}
+        stage_signals: {prime_signal: 0.9, youth_signal: 0.4}
+      B:
+        text: "Вовлечённость частичная, исполнение иногда буксует."
+        paei: {I: 2.0}
+        traits: {commitment_alignment: 1.2}
+        stage_signals: {early_prime_signal: 0.3, youth_signal: 0.2}
+      C:
+        text: "Либо обсуждаем бесконечно без решения, либо внедряем силой без принятия."
+        paei: {I: 1.0}
+        traits: {commitment_alignment: 0.4, political_behavior: 0.7}
+        stage_signals: {youth_signal: 0.4, aristocracy_signal: 0.3}
+      D:
+        text: "Каждый тянет в свою сторону, решения не склеивают организацию."
+        paei: {I: 0.0}
+        traits: {commitment_alignment: 0.0, political_behavior: 1.1, blame_culture: 0.7}
+        stage_signals: {early_bureaucracy_signal: 0.7, bureaucracy_signal: 0.5, prime_signal: -0.9}
+
+  - id: I4
+    text: "Как устроен обмен информацией между подразделениями (сквозные процессы, клиентский путь)?"
+    dimension: I
+    weight: 1.2
+    required: true
+    options:
+      A:
+        text: "Информация течёт свободно, клиент не «собирает пазл» сам."
+        paei: {I: 3.0}
+        traits: {cross_function_flow: 2.0}
+        stage_signals: {prime_signal: 0.8, bureaucracy_signal: -0.8}
+      B:
+        text: "В целом нормально, но есть узкие места и зависимость от отдельных людей."
+        paei: {I: 2.0}
+        traits: {cross_function_flow: 1.2, founder_dependency: 0.3}
+        stage_signals: {early_prime_signal: 0.3, youth_signal: 0.2}
+      C:
+        text: "Сильные барьеры/силосы: информацию приходится «доставать»."
+        paei: {I: 1.0}
+        traits: {cross_function_flow: 0.4, political_behavior: 0.6}
+        stage_signals: {aristocracy_signal: 0.4, early_bureaucracy_signal: 0.5}
+      D:
+        text: "Дезинтеграция: каждый знает кусочек, общая картина отсутствует."
+        paei: {I: 0.0}
+        traits: {cross_function_flow: 0.0, blame_culture: 0.8, political_behavior: 0.7}
+        stage_signals: {early_bureaucracy_signal: 0.8, bureaucracy_signal: 0.6, prime_signal: -0.9}
+
+  - id: I5
+    text: "Как работают регулярные управленческие встречи как механизм интеграции (договорились -> сделали)?"
+    dimension: I
+    weight: 1.1
+    required: true
+    options:
+      A:
+        text: "Регулярно, по правилам, с фиксацией решений и контролем выполнения."
+        paei: {I: 3.0, A: 0.4}
+        traits: {meeting_effectiveness: 2.0, management_rhythm: 0.8}
+        stage_signals: {prime_signal: 0.7, stability_signal: 0.3}
+      B:
+        text: "Регулярно, но качество доведения решений нестабильно."
+        paei: {I: 2.0}
+        traits: {meeting_effectiveness: 1.2}
+        stage_signals: {early_prime_signal: 0.3, youth_signal: 0.2}
+      C:
+        text: "Нерегулярно или превращается в «поговорили и разошлись»."
+        paei: {I: 1.0}
+        traits: {meeting_effectiveness: 0.5, weak_formalization: 0.5}
+        stage_signals: {gogo_signal: 0.4, youth_signal: 0.3}
+      D:
+        text: "Встречи — поле политики/борьбы, решений и выполнения мало."
+        paei: {I: 0.0}
+        traits: {meeting_effectiveness: 0.0, political_behavior: 1.2, blame_culture: 0.6}
+        stage_signals: {aristocracy_signal: 0.6, early_bureaucracy_signal: 0.7, prime_signal: -0.8}
+
+  - id: I6
+    text: "Когда возникает проблема, какая реакция становится нормой?"
+    dimension: I
+    weight: 1.4
+    required: true
+    options:
+      A:
+        text: "Подковёрная борьба/политика: проблема превращается в «кто виноват и чей это человек»."
+        paei: {I: 0.0}
+        traits: {political_behavior: 1.8, blame_culture: 1.2, root_cause_orientation: 0.0}
+        stage_signals: {aristocracy_signal: 0.9, early_bureaucracy_signal: 0.9, bureaucracy_signal: 0.5}
+      B:
+        text: "Чаще поиск виновных, чем устранение причины."
+        paei: {I: 1.0}
+        traits: {blame_culture: 1.5, root_cause_orientation: 0.2}
+        stage_signals: {early_bureaucracy_signal: 0.8, bureaucracy_signal: 0.6}
+      C:
+        text: "Смешанный подход: ищем и виновных, и решение причины."
+        paei: {I: 2.0}
+        traits: {root_cause_orientation: 1.0, blame_culture: 0.5}
+        stage_signals: {youth_signal: 0.3, stability_signal: 0.2}
+      D:
+        text: "Фокус на исправлении системы и причины: «что меняем, чтобы не повторялось»."
+        paei: {I: 3.0, A: 0.4}
+        traits: {root_cause_orientation: 2.0, conflict_constructiveness: 0.8}
+        stage_signals: {prime_signal: 0.8, bureaucracy_signal: -0.9}

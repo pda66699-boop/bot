@@ -1,0 +1,108 @@
+traits:
+  delivery_stability:
+    cluster: execution
+    weight: 1.3
+  execution_reliability:
+    cluster: execution
+    weight: 1.2
+  scalability_control:
+    cluster: execution
+    weight: 1.2
+  customer_retention:
+    cluster: execution
+    weight: 1.1
+  cash_discipline:
+    cluster: execution
+    weight: 1.2
+  result_focus:
+    cluster: execution
+    weight: 1.2
+  market_focus:
+    cluster: execution
+    weight: 1.0
+
+  financial_control:
+    cluster: administration
+    weight: 1.3
+  process_formalization:
+    cluster: administration
+    weight: 1.4
+  management_rhythm:
+    cluster: administration
+    weight: 1.3
+  resource_planning:
+    cluster: administration
+    weight: 1.2
+  role_clarity:
+    cluster: administration
+    weight: 1.2
+  change_discipline:
+    cluster: administration
+    weight: 1.1
+
+  strategic_orientation:
+    cluster: entrepreneurship
+    weight: 1.3
+  opportunity_filtering:
+    cluster: entrepreneurship
+    weight: 1.2
+  experimentation_system:
+    cluster: entrepreneurship
+    weight: 1.5
+  proactive_innovation:
+    cluster: entrepreneurship
+    weight: 1.3
+  risk_tolerance:
+    cluster: entrepreneurship
+    weight: 1.2
+  decision_speed:
+    cluster: entrepreneurship
+    weight: 1.1
+
+  conflict_constructiveness:
+    cluster: integration
+    weight: 1.2
+  founder_dependency:
+    cluster: integration
+    weight: 1.4
+  commitment_alignment:
+    cluster: integration
+    weight: 1.2
+  cross_function_flow:
+    cluster: integration
+    weight: 1.2
+  meeting_effectiveness:
+    cluster: integration
+    weight: 1.0
+  root_cause_orientation:
+    cluster: integration
+    weight: 1.2
+
+  weak_formalization:
+    cluster: immaturity
+    weight: 1.5
+  chaos:
+    cluster: immaturity
+    weight: 1.6
+  overextension:
+    cluster: immaturity
+    weight: 1.3
+  founder_centricity:
+    cluster: immaturity
+    weight: 1.4
+
+  form_over_function:
+    cluster: aging
+    weight: 1.6
+  political_behavior:
+    cluster: aging
+    weight: 1.5
+  initiative_decay:
+    cluster: aging
+    weight: 1.4
+  blame_culture:
+    cluster: aging
+    weight: 1.3
+  market_rigidity:
+    cluster: aging
+    weight: 1.2
